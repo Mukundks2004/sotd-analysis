@@ -19,3 +19,7 @@
 
 - Day with most sotd
 - Day with most sotd that are unique songs (remember when i spammed hanh on my birthday when I turned 18?)
+
+Person who has duplicated the most songs- how many were their own duplicates and how many were other people's
+
+how many kpop songs
