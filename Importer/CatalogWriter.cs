@@ -3,7 +3,7 @@ using Sotd.Database;
 
 namespace Sotd.Importer;
 
-/// <summary>In-memory index of song ids by normalized title, so name matching does not scan the Song table.</summary>
+/// <summary>In-memory index of song ids by match-normalized title, so name matching does not scan the Song table.</summary>
 public class SongTitleIndex
 {
     readonly Dictionary<string, List<Guid>> _byTitle = new();
@@ -18,18 +18,18 @@ public class SongTitleIndex
 
     public void Add(string title, Guid id)
     {
-        var key = Text.NormalizeTitle(title);
+        var key = Text.NormalizeForMatching(title);
         if (!_byTitle.TryGetValue(key, out var list)) _byTitle[key] = list = new();
         list.Add(id);
     }
 
     public IReadOnlyList<Guid> Find(string title) =>
-        _byTitle.TryGetValue(Text.NormalizeTitle(title), out var list) ? list : Array.Empty<Guid>();
+        _byTitle.TryGetValue(Text.NormalizeForMatching(title), out var list) ? list : Array.Empty<Guid>();
 }
 
 /// <summary>
-/// Writes resolved songs to the db, matching existing artists and songs first:
-/// by Spotify ID, then by name (artist) or normalized title plus ordered artists (song).
+/// Writes resolved songs to the db, matching existing artists and songs first: by ISRC, then Spotify ID,
+/// then by name (artist) or match-normalized title plus ordered artists (song).
 /// </summary>
 public class CatalogWriter
 {
@@ -59,7 +59,7 @@ public class CatalogWriter
         var song = await GetOrCreateSongAsync(media, artistIds, context);
         var source = await GetOrCreateSourceAsync(media.SourceName);
 
-        if (media.Quality != MatchQuality.SpotifyExact)
+        if (media.Quality is not (MatchQuality.SpotifyExact or MatchQuality.ProviderExact))
             _log.NameMatched(context, $"{media.Quality}: {media} {media.Link}");
 
         var entry = new SotdEntry
@@ -139,7 +139,11 @@ public class CatalogWriter
     async Task<Song> GetOrCreateSongAsync(ResolvedMedia media, List<Guid> artistIds, string context)
     {
         Song? song = null;
-        if (media.SpotifyTrackId != null)
+        // ISRC first: one recording keeps the same ISRC on every service, while its Spotify id can differ
+        // between markets and album releases.
+        if (media.Isrc != null)
+            song = await _db.Songs.FirstOrDefaultAsync(s => s.Isrc == media.Isrc);
+        if (song == null && media.SpotifyTrackId != null)
             song = await _db.Songs.FirstOrDefaultAsync(s => s.SpotifyId == media.SpotifyTrackId);
 
         if (song == null)
@@ -147,32 +151,54 @@ public class CatalogWriter
             foreach (var id in _songs.Find(media.Title))
             {
                 var candidate = await _db.Songs.FirstAsync(s => s.Id == id);
-                // Two different Spotify tracks are two songs, even with the same title and artists.
-                if (media.SpotifyTrackId != null && candidate.SpotifyId != null) continue;
+                // Two different recordings are two songs, even with the same title and artists.
+                if (media.Isrc != null && candidate.Isrc != null && candidate.Isrc != media.Isrc) continue;
+                if (media.SpotifyTrackId != null && candidate.SpotifyId != null &&
+                    candidate.SpotifyId != media.SpotifyTrackId) continue;
 
                 var existing = await _db.SongArtists.Where(x => x.SongId == id)
                     .OrderBy(x => x.Position).Select(x => x.ArtistId).ToListAsync();
                 if (!existing.SequenceEqual(artistIds)) continue;
 
                 song = candidate;
-                if (media.SpotifyTrackId != null && candidate.SpotifyId == null)
-                {
-                    // Same song first seen without Spotify info: it now gets its Spotify ID.
-                    candidate.SpotifyId = media.SpotifyTrackId;
-                    await _db.SaveChangesAsync();
-                }
                 break;
             }
         }
-        if (song != null) return song;
 
-        song = new Song { Id = Guid.NewGuid(), Title = media.Title, SpotifyId = media.SpotifyTrackId };
+        if (song != null)
+        {
+            await AdoptIdentifiersAsync(song, media);
+            return song;
+        }
+
+        song = new Song { Id = Guid.NewGuid(), Title = media.Title, SpotifyId = media.SpotifyTrackId, Isrc = media.Isrc };
         _db.Songs.Add(song);
         for (var i = 0; i < artistIds.Count; i++)
             _db.SongArtists.Add(new SongArtist { SongId = song.Id, ArtistId = artistIds[i], Position = i + 1 });
         await _db.SaveChangesAsync();
         _songs.Add(song.Title, song.Id);
         return song;
+    }
+
+    /// <summary>
+    /// A song first seen without Spotify/ISRC information picks them up the next time it is posted from a
+    /// source that knows them. Guarded so a value already used by another row is never duplicated.
+    /// </summary>
+    async Task AdoptIdentifiersAsync(Song song, ResolvedMedia media)
+    {
+        var changed = false;
+        if (media.SpotifyTrackId != null && song.SpotifyId == null &&
+            !await _db.Songs.AnyAsync(s => s.SpotifyId == media.SpotifyTrackId))
+        {
+            song.SpotifyId = media.SpotifyTrackId;
+            changed = true;
+        }
+        if (media.Isrc != null && song.Isrc == null && !await _db.Songs.AnyAsync(s => s.Isrc == media.Isrc))
+        {
+            song.Isrc = media.Isrc;
+            changed = true;
+        }
+        if (changed) await _db.SaveChangesAsync();
     }
 
     async Task<Source> GetOrCreateSourceAsync(string name)
