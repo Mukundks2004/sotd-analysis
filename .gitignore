@@ -13,3 +13,9 @@ Download/*
 *.db
 *.db-shm
 *.db-wal
+
+*.dtbcache.v2
+*.futdcache.v2
+*.vsidx
+*.suo
+DocumentLayout.json
