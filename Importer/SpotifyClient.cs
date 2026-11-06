@@ -91,12 +91,13 @@ public class SpotifyClient
     public async Task<List<SpotifyTrack>> GetPlaylistTracksAsync(string id)
     {
         var tracks = new List<SpotifyTrack>();
-        // `type` and `is_local` must be requested explicitly: without them every podcast episode in a
-        // playlist parses as a track and gets imported as a song.
+        // A playlist is not only catalogue tracks: it can also hold podcast episodes and the owner's own
+        // local files. All three are entries, so `type`/`is_local` are requested to tell them apart, and
+        // the episode-only fields (`show`, episode `release_date`) are asked for alongside the track ones.
         string? url = $"https://api.spotify.com/v1/playlists/{id}/tracks?limit=100&market={_market}" +
-                      "&additional_types=track" +
-                      "&fields=next,items(track(id,name,type,is_local,duration_ms,external_ids(isrc)," +
-                      "artists(id,name),album(release_date)))";
+                      "&additional_types=track,episode" +
+                      "&fields=next,items(track(id,name,type,is_local,duration_ms,release_date," +
+                      "external_ids(isrc),artists(id,name),album(release_date),show(name,publisher)))";
         while (url != null)
         {
             using var doc = await GetJsonAsync(url);
@@ -105,7 +106,7 @@ public class SpotifyClient
             {
                 if (item.TryGetProperty("track", out var t) && t.ValueKind == JsonValueKind.Object)
                 {
-                    var track = ParseTrack(t);
+                    var track = ParsePlaylistItem(t);
                     if (track != null) tracks.Add(track);
                 }
             }
@@ -113,6 +114,13 @@ public class SpotifyClient
                 ? next.GetString() : null;
         }
         return tracks;
+    }
+
+    /// <summary>A podcast episode by id, for a link that points straight at one.</summary>
+    public async Task<SpotifyTrack?> GetEpisodeAsync(string id)
+    {
+        using var doc = await GetJsonAsync($"https://api.spotify.com/v1/episodes/{id}?market={_market}");
+        return doc == null ? null : ParseEpisode(doc.RootElement);
     }
 
     public async Task<List<SpotifyTrack>> SearchTracksAsync(string query)

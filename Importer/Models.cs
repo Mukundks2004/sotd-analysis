@@ -33,13 +33,29 @@ public class ResolvedMedia
         $"{Title} - {string.Join(", ", Artists.Select(a => a.Name))} [{SourceName}]";
 }
 
+/// <summary>What a row in a Spotify playlist actually is. Playlists are not only catalogue tracks.</summary>
+public enum SpotifyItemKind
+{
+    /// <summary>A catalogue track.</summary>
+    Track,
+    /// <summary>A podcast episode. Has a Spotify id, but of an episode, and never an ISRC.</summary>
+    Episode,
+    /// <summary>
+    /// A file from the playlist owner's own machine. Has no id, no ISRC and no public URL: the only
+    /// information is the title/artist/album the owner's tags happened to carry.
+    /// </summary>
+    LocalFile,
+}
+
+/// <param name="Id">Null for a local file, which Spotify has no id for.</param>
 public record SpotifyTrack(
-    string Id,
+    string? Id,
     string Name,
     List<MediaArtist> Artists,
     int DurationSeconds,
     DateTime? ReleaseDate,
-    string? Isrc = null);
+    string? Isrc = null,
+    SpotifyItemKind Kind = SpotifyItemKind.Track);
 
 /// <summary>
 /// A track as described by a non-Spotify music API (iTunes/Apple Music, Deezer). These give an exact
