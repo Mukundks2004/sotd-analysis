@@ -321,6 +321,9 @@ namespace Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Isrc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SpotifyId")
                         .HasColumnType("TEXT");
 
@@ -329,6 +332,9 @@ namespace Database.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Isrc")
+                        .IsUnique();
 
                     b.HasIndex("SpotifyId")
                         .IsUnique();
