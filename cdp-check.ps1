@@ -28,10 +28,13 @@ function Receive-Cdp([int]$waitFor, [int]$timeoutSeconds = 60) {
         # A single CDP message can arrive as several frames, so collect until the end flag.
         $builder = [Text.StringBuilder]::new()
         $complete = $false
-        while (-not $complete -and (Get-Date) -lt $deadline) {
+        while (-not $complete) {
             $segment = [ArraySegment[byte]]::new($buffer)
             $task = $socket.ReceiveAsync($segment, [Threading.CancellationToken]::None)
-            if (-not $task.Wait(5000)) { continue }
+            # Never start a second receive while one is outstanding, so wait the whole budget here.
+            if (-not $task.Wait([int]([Math]::Max(1000, ($deadline - (Get-Date)).TotalMilliseconds)))) {
+                return @{ Result = $null; Logs = $logs }
+            }
             [void]$builder.Append([Text.Encoding]::UTF8.GetString($buffer, 0, $task.Result.Count))
             $complete = $task.Result.EndOfMessage
         }
