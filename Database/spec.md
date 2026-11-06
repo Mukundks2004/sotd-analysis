@@ -2,7 +2,7 @@
 
 This is a human readable schema of the database. All columns are not nullable unless otherwise specified.
 
-The database is SQLite, accessed through EF Core. The schema lives in a C# class library in this folder (entities, `DbContext` and migrations), which the Importer (and later the Backend) reference. A generated `schema.sql` is also kept here for readability.
+The database is SQLite, accessed through EF Core. The schema in a C# class library in this folder (entities, `DbContext` and migrations), which the Importer (and later the Backend) reference. `schema.sql` is also kept here.
 
 For each table I've noted if there are a small, finite number of rows (e.g., there are only so many people around 10 that have contributed to SOTD) or a growing number of rows (e.g., `Message` table grows every day)
 
