@@ -147,23 +147,27 @@ public class SpotifyClient
         return genres;
     }
 
+    /// <summary>
+    /// One row of a playlist. That is not always a catalogue track: it can also be a podcast episode or a
+    /// file from the owner's own machine. All three are songs of the day, so none of them is dropped —
+    /// they only differ in how much Spotify knows about them.
+    /// </summary>
+    internal static SpotifyTrack? ParsePlaylistItem(JsonElement t)
+    {
+        if (t.ValueKind != JsonValueKind.Object) return null;
+        if (t.TryGetProperty("is_local", out var local) && local.ValueKind == JsonValueKind.True)
+            return ParseLocalFile(t);
+        var type = t.TryGetProperty("type", out var ty) ? ty.GetString() : null;
+        return type == "episode" ? ParseEpisode(t) : ParseTrack(t);
+    }
+
     static SpotifyTrack? ParseTrack(JsonElement t)
     {
         if (t.ValueKind != JsonValueKind.Object) return null;
         if (!t.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.String) return null;
         if (t.TryGetProperty("type", out var type) && type.GetString() != "track") return null;
-        // A "local file" row in a playlist is not a catalogue track and has no usable ids.
+        // A local file has no catalogue data at all, so it cannot be read as a track.
         if (t.TryGetProperty("is_local", out var local) && local.ValueKind == JsonValueKind.True) return null;
-
-        var artists = new List<MediaArtist>();
-        if (t.TryGetProperty("artists", out var arr))
-            foreach (var a in arr.EnumerateArray())
-            {
-                var name = a.TryGetProperty("name", out var n) ? n.GetString() : null;
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                var aid = a.TryGetProperty("id", out var ai) && ai.ValueKind == JsonValueKind.String ? ai.GetString() : null;
-                artists.Add(new MediaArtist(name, aid));
-            }
 
         DateTime? release = null;
         if (t.TryGetProperty("album", out var album) && album.ValueKind == JsonValueKind.Object &&
@@ -175,14 +179,77 @@ public class SpotifyClient
             ext.TryGetProperty("isrc", out var isrcEl) && isrcEl.ValueKind == JsonValueKind.String)
             isrc = NormalizeIsrc(isrcEl.GetString());
 
-        var durationMs = t.TryGetProperty("duration_ms", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetInt64() : 0;
         return new SpotifyTrack(
             idEl.GetString()!,
-            t.GetProperty("name").GetString() ?? "",
-            artists,
-            (int)Math.Round(durationMs / 1000.0),
+            ParseName(t) ?? "",
+            ParseArtists(t),
+            ParseSeconds(t),
             release,
             isrc);
+    }
+
+    /// <summary>
+    /// A podcast episode. It has a real Spotify id, but never an ISRC and never an artist, so the show it
+    /// belongs to is credited instead — that is who a listener would name.
+    /// </summary>
+    internal static SpotifyTrack? ParseEpisode(JsonElement t)
+    {
+        if (t.ValueKind != JsonValueKind.Object) return null;
+        if (ParseName(t) is not { } name) return null;
+        var id = t.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String
+            ? idEl.GetString() : null;
+
+        var artists = new List<MediaArtist>();
+        if (t.TryGetProperty("show", out var show) && show.ValueKind == JsonValueKind.Object)
+        {
+            var showName = show.TryGetProperty("name", out var sn) ? sn.GetString() : null;
+            if (string.IsNullOrWhiteSpace(showName))
+                showName = show.TryGetProperty("publisher", out var pub) ? pub.GetString() : null;
+            if (!string.IsNullOrWhiteSpace(showName)) artists.Add(new MediaArtist(showName.Trim(), null));
+        }
+
+        // An episode dates itself; there is no album to ask.
+        DateTime? release = t.TryGetProperty("release_date", out var rd) && rd.ValueKind == JsonValueKind.String
+            ? ParseReleaseDate(rd.GetString())
+            : null;
+
+        return new SpotifyTrack(id, name, artists, ParseSeconds(t), release, null, SpotifyItemKind.Episode);
+    }
+
+    /// <summary>
+    /// A file from the playlist owner's own machine. Spotify holds no catalogue data for it — no id, no
+    /// ISRC, no public URL, and an album with no usable date — but the title and artist tags it does carry
+    /// are enough to record what was posted, so the row is imported as-is rather than dropped.
+    /// </summary>
+    static SpotifyTrack? ParseLocalFile(JsonElement t)
+    {
+        if (ParseName(t) is not { } name) return null;
+        return new SpotifyTrack(null, name, ParseArtists(t), ParseSeconds(t), null, null, SpotifyItemKind.LocalFile);
+    }
+
+    static string? ParseName(JsonElement t) =>
+        t.TryGetProperty("name", out var n) && n.GetString() is { } name && !string.IsNullOrWhiteSpace(name)
+            ? name.Trim()
+            : null;
+
+    static List<MediaArtist> ParseArtists(JsonElement t)
+    {
+        var artists = new List<MediaArtist>();
+        if (!t.TryGetProperty("artists", out var arr) || arr.ValueKind != JsonValueKind.Array) return artists;
+        foreach (var a in arr.EnumerateArray())
+        {
+            var name = a.TryGetProperty("name", out var n) ? n.GetString() : null;
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            var aid = a.TryGetProperty("id", out var ai) && ai.ValueKind == JsonValueKind.String ? ai.GetString() : null;
+            artists.Add(new MediaArtist(name, aid));
+        }
+        return artists;
+    }
+
+    static int ParseSeconds(JsonElement t)
+    {
+        var ms = t.TryGetProperty("duration_ms", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetInt64() : 0;
+        return (int)Math.Round(ms / 1000.0);
     }
 
     /// <summary>ISRCs are 12 alphanumeric characters; services format them with or without dashes.</summary>

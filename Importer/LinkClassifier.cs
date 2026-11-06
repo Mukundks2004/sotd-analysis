@@ -9,6 +9,8 @@ public enum LinkKind
     Track,
     /// <summary>A playlist; each song in it is one entry.</summary>
     Playlist,
+    /// <summary>A podcast episode, which is an entry in its own right.</summary>
+    Episode,
     /// <summary>A known music/video host; let yt-dlp / page metadata work out what it is.</summary>
     Generic,
     /// <summary>Short link that must be redirected before it can be classified.</summary>
@@ -105,6 +107,7 @@ public static class LinkClassifier
             {
                 "track" => new LinkInfo(url, "spotify", LinkKind.Track, m.Groups[2].Value),
                 "playlist" => new LinkInfo(url, "spotify", LinkKind.Playlist, m.Groups[2].Value),
+                "episode" => new LinkInfo(url, "spotify", LinkKind.Episode, m.Groups[2].Value),
                 _ => new LinkInfo(url, "spotify", LinkKind.Unsupported, m.Groups[2].Value),
             };
         }
