@@ -1,0 +1,15 @@
+# build output
+bin/
+obj/
+
+# importer config (secrets) and logs
+Importer/config.json
+Importer/Logs/
+Logs/
+
+# downloaded media and local database
+Download/*
+!Download/README.md
+*.db
+*.db-shm
+*.db-wal
