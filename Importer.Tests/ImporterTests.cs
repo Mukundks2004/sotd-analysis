@@ -173,6 +173,66 @@ public class ParsingTests
     public void SpotifyReleaseDates(string s, int y, int m, int d) =>
         Assert.Equal(new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc), SpotifyClient.ParseReleaseDate(s));
 
+    static SpotifyTrack? Item(string json) =>
+        SpotifyClient.ParsePlaylistItem(System.Text.Json.JsonDocument.Parse(json).RootElement);
+
+    [Fact]
+    public void PlaylistTrack_IsReadAsACatalogueTrack()
+    {
+        var t = Item("""
+            {"id":"4uLU6hMCjMI75M1A2tKUQC","type":"track","is_local":false,"name":"Creep",
+             "duration_ms":238000,"external_ids":{"isrc":"GBAYE9200051"},
+             "artists":[{"id":"4Z8W4fKeB5YxbusRsdQVPb","name":"Radiohead"}],
+             "album":{"release_date":"1993-02-22"}}
+            """);
+        Assert.NotNull(t);
+        Assert.Equal(SpotifyItemKind.Track, t!.Kind);
+        Assert.Equal("Creep", t.Name);
+        Assert.Equal("GBAYE9200051", t.Isrc);
+        Assert.Equal(238, t.DurationSeconds);
+    }
+
+    [Fact]
+    public void PlaylistEpisode_IsAnEntryCreditedToItsShow()
+    {
+        var t = Item("""
+            {"id":"512ojhOuo1ktJprKbVcKyQ","type":"episode","name":"Episode 42",
+             "duration_ms":3600000,"release_date":"2021-07-03",
+             "show":{"name":"Song Exploder","publisher":"Hrishikesh Hirway"}}
+            """);
+        Assert.NotNull(t);
+        Assert.Equal(SpotifyItemKind.Episode, t!.Kind);
+        Assert.Equal("Episode 42", t.Name);
+        Assert.Equal("512ojhOuo1ktJprKbVcKyQ", t.Id);
+        Assert.Equal("Song Exploder", Assert.Single(t.Artists).Name);
+        Assert.Equal(3600, t.DurationSeconds);
+        Assert.Equal(new DateTime(2021, 7, 3, 0, 0, 0, DateTimeKind.Utc), t.ReleaseDate);
+        // An episode is not a recording, so it never carries an ISRC to match on.
+        Assert.Null(t.Isrc);
+    }
+
+    [Fact]
+    public void PlaylistLocalFile_IsAnEntryWithNoIdAndNoLink()
+    {
+        var t = Item("""
+            {"id":null,"type":"track","is_local":true,"name":"Demo Take 3","duration_ms":125000,
+             "external_ids":{},"artists":[{"id":null,"name":"My Band"}],"album":{"release_date":"0000"}}
+            """);
+        Assert.NotNull(t);
+        Assert.Equal(SpotifyItemKind.LocalFile, t!.Kind);
+        Assert.Equal("Demo Take 3", t.Name);
+        Assert.Null(t.Id);
+        Assert.Null(t.Isrc);
+        // Spotify's placeholder album date says nothing about the file.
+        Assert.Null(t.ReleaseDate);
+        Assert.Equal("My Band", Assert.Single(t.Artists).Name);
+        Assert.Equal(125, t.DurationSeconds);
+    }
+
+    [Fact]
+    public void PlaylistItem_WithoutATitleIsNotAnEntry() =>
+        Assert.Null(Item("""{"id":null,"is_local":true,"name":"","duration_ms":1000}"""));
+
     [Fact]
     public void PageMetadata_ReadsJsonLd()
     {
