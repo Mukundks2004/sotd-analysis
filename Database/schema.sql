@@ -53,7 +53,8 @@ CREATE TABLE "Profiles" (
 CREATE TABLE "Songs" (
     "Id" TEXT NOT NULL CONSTRAINT "PK_Songs" PRIMARY KEY,
     "Title" TEXT NOT NULL,
-    "SpotifyId" TEXT NULL
+    "SpotifyId" TEXT NULL,
+    "Isrc" TEXT NULL
 );
 
 CREATE TABLE "Sources" (
@@ -198,6 +199,8 @@ CREATE INDEX "IX_SongArtists_ArtistId" ON "SongArtists" ("ArtistId");
 CREATE INDEX "IX_SongGenres_GenreId" ON "SongGenres" ("GenreId");
 
 CREATE UNIQUE INDEX "IX_Songs_SpotifyId" ON "Songs" ("SpotifyId");
+
+CREATE UNIQUE INDEX "IX_Songs_Isrc" ON "Songs" ("Isrc");
 
 CREATE INDEX "IX_Songs_Title" ON "Songs" ("Title");
 
