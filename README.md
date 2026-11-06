@@ -1,5 +1,24 @@
 # SOTD Analysis
 
+## Getting Started
+
+**Prerequisites**:
+
+- .NET 10
+- yt-dlp
+- spotify premium account
+- discord bot
+
+1. Fill in `config.json` based off `config.example.json`.
+
+2. Run:
+
+```cmd
+dotnet run --project Importer
+```
+
+## About
+
 This repo has all the code required to do a sotd analysis
 
 This includes the following solutions. Each of them is in a dedicated folder with a spec `.md` file.
