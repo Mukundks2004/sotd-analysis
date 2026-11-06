@@ -11,7 +11,7 @@ This includes the following solutions. Each of them is in a dedicated folder wit
 
 ## What is SOTD?
 
-Sotd stands for song of the day. It is a daily ritual amongst my friend group in a shared discord server in a specific set of "sotd" channels. (Almost) every day for the last 5 years, one or more songs are posted in the sotd channel as sotd entries- these are all "songs of the day".
+Sotd stands for song of the day. It is a daily ritual amongst my friend group in a shared discord server in a specific set of "sotd" channels. (Almost) every day for the last 5 years, one or more songs are posted in the sotd channel as sotd entries- these are all "songs of the day". Sometimes multiple links are sent in one discord message, each link is its own entry.
 
 A SOTD entry can be in the form of:
 
