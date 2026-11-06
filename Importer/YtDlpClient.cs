@@ -77,7 +77,9 @@ public class YtDlpClient
                 if (a.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(a.GetString()))
                     artists.Add(a.GetString()!);
         if (artists.Count == 0 && Str("artist") is { Length: > 0 } single)
-            artists.AddRange(single.Split(", ", StringSplitOptions.RemoveEmptyEntries));
+            artists.AddRange(Text.SplitArtistNames(single));
+        if (artists.Count == 0 && Str("creator") is { Length: > 0 } creator)
+            artists.AddRange(Text.SplitArtistNames(creator));
 
         var uploader = Str("uploader") ?? Str("channel");
         var date = ParseDate(Str("release_date")) ?? ParseDate(Str("upload_date"));
