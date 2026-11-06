@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Backend/Backend.csproj" />
   <Project Path="Database/Database.csproj" />
   <Project Path="Importer.Tests/Importer.Tests.csproj" />
   <Project Path="Importer/Importer.csproj" />
