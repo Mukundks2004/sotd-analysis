@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Autocomplete,
   Box,
   Chip,
   CircularProgress,
+  ClickAwayListener,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
   MenuItem,
   Pagination,
   Paper,
+  Popper,
   Select,
   Stack,
   Table,
@@ -217,6 +221,7 @@ function AnnotationRowView({ relationship, row, onTags }: RowProps) {
   const [busy, setBusy] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const loadedRef = useRef(false);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
 
   const loadOptions = useCallback(
@@ -355,38 +360,59 @@ function AnnotationRowView({ relationship, row, onTags }: RowProps) {
       </TableCell>
 
       <TableCell>
-        <Autocomplete
-          size="small"
-          open={open}
-          onOpen={handleOpen}
-          onClose={() => setOpen(false)}
-          options={choices}
-          filterOptions={(all) => all}
-          inputValue={search}
-          onInputChange={(_, value) => setSearch(value)}
-          value={null}
-          onChange={(_, choice) => choice && void add(choice)}
-          getOptionLabel={(option) => ('create' in option ? option.create : option.name)}
-          isOptionEqualToValue={(option, value) =>
-            'create' in option || 'create' in value ? false : option.id === value.id
-          }
-          renderOption={(props, option) => {
-            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-            return (
-              <li key={key} {...rest}>
-                {'create' in option ? (
-                  <Typography variant="body2" color="primary">
-                    add &ldquo;{option.create}&rdquo;
-                  </Typography>
-                ) : (
-                  option.name
+        <Box ref={anchorRef}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder={`Add ${relationship.tag.toLowerCase()}`}
+            value={search}
+            onFocus={handleOpen}
+            onClick={handleOpen}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setOpen(false);
+              if (event.key === 'Enter' && choices.length > 0) void add(choices[0]);
+            }}
+          />
+        </Box>
+        <Popper
+          open={open && anchorRef.current !== null}
+          anchorEl={anchorRef.current}
+          placement="bottom-start"
+          style={{ zIndex: 1300, width: anchorRef.current?.clientWidth }}
+        >
+          <ClickAwayListener onClickAway={() => setOpen(false)}>
+            <Paper elevation={6} sx={{ maxHeight: 260, overflowY: 'auto' }}>
+              <List dense disablePadding>
+                {choices.length === 0 && (
+                  <ListItem>
+                    <Typography variant="body2" color="text.secondary">
+                      No {relationship.tag.toLowerCase()}s left to add
+                    </Typography>
+                  </ListItem>
                 )}
-              </li>
-            );
-          }}
-          noOptionsText={`No ${relationship.tag.toLowerCase()}s left to add`}
-          renderInput={(params) => <TextField {...params} placeholder={`Add ${relationship.tag.toLowerCase()}`} />}
-        />
+                {choices.map((choice) => (
+                  <ListItemButton
+                    key={'create' in choice ? 'create' : choice.id}
+                    // Mouse-down fires before the text box loses focus, so the click always lands.
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      void add(choice);
+                    }}
+                  >
+                    {'create' in choice ? (
+                      <Typography variant="body2" color="primary">
+                        add &ldquo;{choice.create}&rdquo;
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2">{choice.name}</Typography>
+                    )}
+                  </ListItemButton>
+                ))}
+              </List>
+            </Paper>
+          </ClickAwayListener>
+        </Popper>
       </TableCell>
     </TableRow>
   );
