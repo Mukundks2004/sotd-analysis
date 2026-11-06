@@ -54,7 +54,7 @@ Every run, for every profile already in the db that is seen (as a poster, a reac
 A message produces zero or more SOTD entries:
 
 - every link in the message whose host is a known music or video host (YouTube, YouTube Music, Spotify, Apple Music, Deezer, SoundCloud, Bandcamp, Vimeo, Tidal, Amazon Music, etc.) is an entry. Each link in a message is its own entry.
-- a YouTube, Spotify or Deezer playlist link produces one entry per track in the playlist. Non-song items in a Spotify playlist (podcast episodes, local files) are skipped.
+- a YouTube, Spotify or Deezer playlist link produces one entry per track in the playlist. A Spotify playlist can also hold podcast episodes and the owner's own local files; both are entries too. An episode is credited to its show and keeps its episode link; a local file has no link, no ids and no release date, so only the title, artist and duration its tags carried are stored, and it is written to the review log.
 - a link from a known URL shortener (`spotify.link`, `apple.co`, `bit.ly`, `t.co`, `lnk.to`, etc.) is followed to its destination and then classified normally. If it lands on a host we do not import, it is treated as "not an entry" rather than as a failure.
 - every attached file that is an audio or video file is an entry (source `file upload`, no link, attachment set).
 - **Not entries** links to any other host (tweets, images, gifs, news, etc.), image attachments, and any other media without audio. These links are written to a review log (see Logs).
@@ -64,7 +64,7 @@ Each distinct link is resolved at most once per run. URLs are cached under a key
 ## Creating an entry
 
 - First, work out the song title, artists, duration, release date and ISRC, in this order of preference:
-  1. For a Spotify link, use the Spotify API directly.
+  1. For a Spotify link, use the Spotify API directly (a track, or an episode for a podcast link).
   2. For an Apple Music or Deezer link, ask that service's own public API (iTunes Lookup / the Deezer API). These answer exactly for their own links, so nothing has to be guessed out of a page title. Deezer also returns the ISRC, which is then used to look the same recording up on Spotify exactly.
   3. For any other source, get the raw title/uploader/duration/upload date from the source (YouTube via `yt-dlp`, which also expands playlists; other sites via oEmbed/Open Graph/JSON-LD where available; file uploads by reading the file's metadata and duration). Then try to find the proper song and artists by searching the Spotify API with a string query.
   4. As a last resort, use the raw title of the source and the uploader name (youtube uploader) as the artist.
