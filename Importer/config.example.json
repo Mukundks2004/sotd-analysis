@@ -1,0 +1,9 @@
+{
+  "DatabasePath": "sotd.db",
+  "DiscordToken": "your bot token",
+  "GuildId": 0,
+  "ChannelIds": [0],
+  "SpotifyClientId": "your spotify client id",
+  "SpotifyClientSecret": "your spotify client secret",
+  "YtDlpPath": "yt-dlp"
+}
