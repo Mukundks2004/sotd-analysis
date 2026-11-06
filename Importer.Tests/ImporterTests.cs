@@ -35,6 +35,85 @@ public class TextTests
     [Fact]
     public void TryParseArtistTitle_Splits() =>
         Assert.Equal(("Radiohead", "Creep"), Text.TryParseArtistTitle("Radiohead - Creep"));
+
+    [Theory]
+    [InlineData("Radiohead - Creep | Official Music Video", "Radiohead - Creep")]
+    [InlineData("Radiohead - Creep - Official Video", "Radiohead - Creep")]
+    [InlineData("【MV】Band - Song", "Band - Song")]
+    [InlineData("Artist - Song (prod. by Someone)", "Artist - Song")]
+    [InlineData("\"Creep\"", "Creep")]
+    public void CleanVideoTitle_StripsUnbracketedAndCjkNoise(string raw, string expected) =>
+        Assert.Equal(expected, Text.CleanVideoTitle(raw));
+
+    [Fact]
+    public void SplitFeatured_PullsOutCredits()
+    {
+        var (title, featured) = Text.SplitFeatured("Song Name (feat. Alice & Bob)");
+        Assert.Equal("Song Name", title);
+        Assert.Equal(new[] { "Alice", "Bob" }, featured);
+    }
+
+    [Fact]
+    public void SplitFeatured_HandlesTrailingFeat()
+    {
+        var (title, featured) = Text.SplitFeatured("Song Name ft. Alice");
+        Assert.Equal("Song Name", title);
+        Assert.Equal(new[] { "Alice" }, featured);
+    }
+
+    [Fact]
+    public void ArtistTitleCandidates_OffersBothSplitsOfAnAmbiguousTitle()
+    {
+        var candidates = Text.ArtistTitleCandidates("Artist - Song - Live at Wembley");
+        Assert.Contains(("Artist", "Song - Live at Wembley"), candidates);
+        Assert.Contains(("Artist - Song", "Live at Wembley"), candidates);
+    }
+
+    [Theory]
+    [InlineData("Artist: Song", "Artist", "Song")]
+    [InlineData("Artist \"Song\"", "Artist", "Song")]
+    public void ArtistTitleCandidates_HandlesOtherShapes(string raw, string artist, string title) =>
+        Assert.Contains((artist, title), Text.ArtistTitleCandidates(raw));
+
+    [Theory]
+    [InlineData("RadioheadVEVO", "Radiohead")]
+    [InlineData("Radiohead - Topic", "Radiohead")]
+    [InlineData("Radiohead Official Channel", "Radiohead")]
+    public void CleanUploader_StripsChannelDecoration(string raw, string expected) =>
+        Assert.Equal(expected, Text.CleanUploader(raw));
+
+    [Theory]
+    [InlineData("Various Artists")]
+    [InlineData("Some Label Records")]
+    [InlineData("SomethingVEVO")]
+    public void IsLikelyChannelName_RejectsNonArtists(string name) => Assert.True(Text.IsLikelyChannelName(name));
+
+    [Theory]
+    [InlineData("Radiohead")]
+    [InlineData("TV Girl")]
+    public void IsLikelyChannelName_KeepsRealArtists(string name) => Assert.False(Text.IsLikelyChannelName(name));
+
+    [Theory]
+    [InlineData("Creep - Remastered 2011")]
+    [InlineData("Creep (Remastered)")]
+    [InlineData("Creep - Radio Edit")]
+    [InlineData("Creep (feat. Someone)")]
+    public void NormalizeForMatching_IgnoresReissueMarkers(string title) =>
+        Assert.Equal(Text.NormalizeForMatching("Creep"), Text.NormalizeForMatching(title));
+
+    [Theory]
+    [InlineData("Creep - Live at Wembley")]
+    [InlineData("Creep (Remix)")]
+    [InlineData("Creep - Acoustic")]
+    public void NormalizeForMatching_KeepsDifferentRecordingsApart(string title) =>
+        Assert.NotEqual(Text.NormalizeForMatching("Creep"), Text.NormalizeForMatching(title));
+
+    [Fact]
+    public void ContainsAsTokens_DoesNotMatchPartialWords()
+    {
+        Assert.True(Text.ContainsAsTokens("radiohead creep official video", "creep"));
+        Assert.False(Text.ContainsAsTokens("homesick blues", "home"));
+    }
 }
 
 public class LinkClassifierTests
@@ -42,7 +121,7 @@ public class LinkClassifierTests
     [Theory]
     [InlineData("https://www.youtube.com/watch?v=abc", "youtube", LinkKind.Track)]
     [InlineData("https://youtu.be/abc", "youtube", LinkKind.Track)]
-    [InlineData("https://music.youtube.com/watch?v=abc", "youtube", LinkKind.Track)]
+    [InlineData("https://music.youtube.com/watch?v=abc", "youtube music", LinkKind.Track)]
     [InlineData("https://www.youtube.com/shorts/abc", "youtube shorts", LinkKind.Track)]
     [InlineData("https://www.youtube.com/playlist?list=PL1", "youtube", LinkKind.Playlist)]
     [InlineData("https://www.youtube.com/@somechannel", "youtube", LinkKind.Unsupported)]
@@ -50,7 +129,12 @@ public class LinkClassifierTests
     [InlineData("https://open.spotify.com/intl-de/track/4uLU6hMCjMI75M1A2tKUQC", "spotify", LinkKind.Track)]
     [InlineData("https://open.spotify.com/playlist/37i9dQZF1DX", "spotify", LinkKind.Playlist)]
     [InlineData("https://open.spotify.com/album/abc", "spotify", LinkKind.Unsupported)]
-    [InlineData("https://music.apple.com/us/album/x/1?i=2", "apple music", LinkKind.Generic)]
+    [InlineData("https://music.apple.com/us/album/x/1?i=2", "apple music", LinkKind.Track)]
+    [InlineData("https://music.apple.com/us/song/halo/123456", "apple music", LinkKind.Track)]
+    [InlineData("https://music.apple.com/us/album/x/1", "apple music", LinkKind.Unsupported)]
+    [InlineData("https://www.deezer.com/us/track/3135556", "deezer", LinkKind.Track)]
+    [InlineData("https://www.deezer.com/playlist/1234", "deezer", LinkKind.Playlist)]
+    [InlineData("https://soundcloud.com/a/sets/b", "soundcloud", LinkKind.Playlist)]
     [InlineData("https://artist.bandcamp.com/track/x", "bandcamp", LinkKind.Generic)]
     [InlineData("https://soundcloud.com/a/b", "soundcloud", LinkKind.Generic)]
     [InlineData("https://music.amazon.co.uk/albums/B0", "amazon music", LinkKind.Generic)]
@@ -68,6 +152,15 @@ public class LinkClassifierTests
     [InlineData("https://i.imgur.com/a.png")]
     [InlineData("https://notyoutube.com/watch?v=abc")]
     public void IgnoresOtherHosts(string url) => Assert.Null(LinkClassifier.Classify(url));
+
+    [Theory]
+    [InlineData("https://spotify.link/abc")]
+    [InlineData("https://bit.ly/abc")]
+    [InlineData("https://t.co/abc")]
+    [InlineData("https://apple.co/abc")]
+    [InlineData("https://lnk.to/abc")]
+    public void ShortenersAreFollowedRatherThanDropped(string url) =>
+        Assert.Equal(LinkKind.ShortLink, LinkClassifier.Classify(url)!.Kind);
 }
 
 public class ParsingTests
@@ -102,6 +195,66 @@ public class ParsingTests
     }
 
     [Fact]
+    public void PageMetadata_IgnoresAlbumNodeSoAlbumNameIsNotStoredAsTheSong()
+    {
+        var html = "<html><script type=\"application/ld+json\">" +
+                   "{\"@type\":\"MusicAlbum\",\"name\":\"Greatest Hits\"," +
+                   "\"byArtist\":{\"@type\":\"MusicGroup\",\"name\":\"Beyonc\u00e9\"}}</script></html>";
+        Assert.Null(PageMetadataClient.Parse(html));
+    }
+
+    [Fact]
+    public void PageMetadata_PicksTheRequestedTrackOutOfAnAlbum()
+    {
+        var html = "<html><script type=\"application/ld+json\">" +
+                   "{\"@type\":[\"MusicAlbum\",\"Product\"],\"name\":\"I Am... Sasha Fierce\"," +
+                   "\"byArtist\":{\"@type\":\"MusicGroup\",\"name\":\"Beyonc\u00e9\"}," +
+                   "\"track\":[{\"@type\":\"MusicRecording\",\"name\":\"Single Ladies\",\"url\":\"https://music.apple.com/us/album/x/1?i=111\"}," +
+                   "{\"@type\":\"MusicRecording\",\"name\":\"Halo\",\"url\":\"https://music.apple.com/us/album/x/1?i=222\"}]}" +
+                   "</script></html>";
+        var meta = PageMetadataClient.Parse(html, "222");
+        Assert.Equal("Halo", meta!.Title);
+        Assert.Equal("Beyonc\u00e9", meta.Artist);
+    }
+
+    [Fact]
+    public void ITunes_ParsesLookupResponse()
+    {
+        var json = "{\"resultCount\":2,\"results\":[" +
+                   "{\"wrapperType\":\"collection\",\"collectionName\":\"I Am... Sasha Fierce\"}," +
+                   "{\"kind\":\"song\",\"trackName\":\"Halo\",\"artistName\":\"Beyonc\u00e9\"," +
+                   "\"trackTimeMillis\":261000,\"releaseDate\":\"2008-11-14T08:00:00Z\"}]}";
+        var track = ITunesClient.Parse(json);
+        Assert.Equal("Halo", track!.Title);
+        Assert.Equal(new[] { "Beyonc\u00e9" }, track.Artists);
+        Assert.Equal(261, track.DurationSeconds);
+    }
+
+    [Fact]
+    public void Deezer_ParsesTrackIncludingIsrc()
+    {
+        var json = "{\"id\":3135556,\"title\":\"Harder Better Faster Stronger\",\"duration\":224," +
+                   "\"isrc\":\"GBDUW0000059\",\"release_date\":\"2001-03-07\"," +
+                   "\"artist\":{\"name\":\"Daft Punk\"}}";
+        var track = DeezerClient.ParseTrack(json);
+        Assert.Equal("Harder Better Faster Stronger", track!.Title);
+        Assert.Equal(new[] { "Daft Punk" }, track.Artists);
+        Assert.Equal(224, track.DurationSeconds);
+        Assert.Equal("GBDUW0000059", track.Isrc);
+    }
+
+    [Fact]
+    public void Deezer_IgnoresErrorPayload() => Assert.Null(DeezerClient.ParseTrack("{\"error\":{\"type\":\"DataException\"}}"));
+
+    [Theory]
+    [InlineData("gb-duw-00-00059", "GBDUW0000059")]
+    [InlineData("gbduw0000059", "GBDUW0000059")]
+    [InlineData("nope", null)]
+    [InlineData(null, null)]
+    public void IsrcsAreNormalisedBeforeTheyAreUsedAsIdentity(string? raw, string? expected) =>
+        Assert.Equal(expected, SpotifyClient.NormalizeIsrc(raw));
+
+    [Fact]
     public void SearchResultPlausibility()
     {
         var track = new SpotifyTrack("1", "Creep", new() { new MediaArtist("Radiohead", "r1") }, 238, null);
@@ -109,6 +262,31 @@ public class ParsingTests
         Assert.False(MediaResolver.IsPlausible(track, "Some Other Song", "Some Other Song", new() { "Someone" }));
         Assert.False(MediaResolver.IsPlausible(track, "Creep (cover)", "Creep", new() { "Random Guy" }));
     }
+
+    [Fact]
+    public void Score_RejectsResultsWhoseLengthIsNothingLikeThePostedMedia()
+    {
+        var track = new SpotifyTrack("1", "Creep", new() { new MediaArtist("Radiohead", "r1") }, 238, null);
+        var hints = new List<string> { "Radiohead" };
+        Assert.True(MediaResolver.Score(track, "Radiohead - Creep (Live at Glastonbury)", "Creep", hints, 600) < 0);
+        Assert.True(MediaResolver.Score(track, "Radiohead - Creep", "Creep", hints, 240) > 0.9);
+    }
+
+    [Fact]
+    public void Score_PrefersTheResultWithTheCloserDuration()
+    {
+        var hints = new List<string> { "Radiohead" };
+        var studio = new SpotifyTrack("1", "Creep", new() { new MediaArtist("Radiohead", "r1") }, 238, null);
+        var extended = new SpotifyTrack("2", "Creep", new() { new MediaArtist("Radiohead", "r1") }, 300, null);
+        Assert.True(MediaResolver.Score(studio, "Radiohead - Creep", "Creep", hints, 238) >
+                    MediaResolver.Score(extended, "Radiohead - Creep", "Creep", hints, 238));
+    }
+
+    [Theory]
+    [InlineData("https://open.spotify.com/track/abc?si=123&utm_source=copy-link", "https://open.spotify.com/track/abc")]
+    [InlineData("https://www.youtube.com/watch?v=abc&t=42s&feature=share", "https://www.youtube.com/watch?v=abc")]
+    public void CacheKey_IgnoresTrackingParametersSoOneLinkResolvesOnce(string url, string equivalent) =>
+        Assert.Equal(MediaResolver.CacheKey(equivalent), MediaResolver.CacheKey(url));
 }
 
 /// <summary>Runs CatalogWriter against a real (temporary) sqlite file, with Spotify faked.</summary>
@@ -153,6 +331,33 @@ public class CatalogWriterTests : IDisposable
         SpotifyTrackId = spotifyId, DurationSeconds = 200,
         Quality = spotifyId != null ? MatchQuality.SpotifySearch : MatchQuality.Raw,
     };
+
+    [Fact]
+    public async Task SameRecordingFromTwoServices_IsOneSongWhenTheIsrcMatches()
+    {
+        var daft = new MediaArtist("Daft Punk", "a1");
+        var w = Writer();
+        var fromDeezer = Media("Harder Better Faster Stronger", "deezer", "t1", daft);
+        fromDeezer.Isrc = "GBDUW0000059";
+        var fromApple = Media("Harder, Better, Faster, Stronger", "apple music", "t2", daft);
+        fromApple.Isrc = "GBDUW0000059";
+        await w.AddEntryAsync(_message, fromDeezer, null, "ctx");
+        await w.AddEntryAsync(_message, fromApple, null, "ctx");
+
+        Assert.Equal(1, await _db.Songs.CountAsync());
+        Assert.Equal(2, await _db.SotdEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task ReissueOfTheSameTitle_IsNotASecondSong()
+    {
+        var radiohead = new MediaArtist("Radiohead", "r1");
+        var w = Writer();
+        await w.AddEntryAsync(_message, Media("Creep", "youtube", null, radiohead), null, "ctx");
+        await w.AddEntryAsync(_message, Media("Creep - Remastered 2008", "apple music", null, radiohead), null, "ctx");
+
+        Assert.Equal(1, await _db.Songs.CountAsync());
+    }
 
     [Fact]
     public async Task SameSpotifyTrackFromTwoSources_IsOneSong()
