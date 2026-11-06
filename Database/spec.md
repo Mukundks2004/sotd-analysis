@@ -4,6 +4,8 @@ This is a human readable schema of the database. All columns are not nullable un
 
 For each table I've noted if there are a small, finite number of rows (e.g., there are only so many people around 10 that have contributed to SOTD) or a growing number of rows (e.g., `Message` table grows every day)
 
+There should be no on delete cascade- if deletes fail due to a constraint, that is good.
+
 TODO: Find the type of the discord ID system for profile ID, message ID, channel ID, etc.
 
 ## Person [Small] Order By Name Alphabetical
@@ -72,7 +74,7 @@ TODO: Find the type of the discord ID system for profile ID, message ID, channel
 
 ## Reaction
 
-> For provenance. Functionally a join entity between emoji and message, since an emoji can be used on many messages and a message can have many emojis
+> For provenance. Functionally a join entity between emoji and message, since an emoji can be used on many messages and a message can have many emojis, and even a message with a given emoji can have multiple reactions from different profiles.
 
 - Message (Foreign key reference to `Message`)
 - Profile (Foreign key reference to `Profile`)
