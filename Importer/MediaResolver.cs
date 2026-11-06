@@ -148,11 +148,24 @@ public class MediaResolver
             var track = await _spotify.GetTrackAsync(info.ProviderId);
             return track == null ? new() : new() { FromSpotify(track, info.Url) };
         }
+        if (info.Kind == LinkKind.Episode)
+        {
+            var episode = await _spotify.GetEpisodeAsync(info.ProviderId);
+            return episode == null ? new() : new() { FromSpotify(episode, info.Url) };
+        }
         var tracks = await _spotify.GetPlaylistTracksAsync(info.ProviderId);
-        return tracks.Select(t => FromSpotify(t, $"https://open.spotify.com/track/{t.Id}")).ToList();
+        return tracks.Select(t => FromSpotify(t, SpotifyLink(t))).ToList();
     }
 
-    static ResolvedMedia FromSpotify(SpotifyTrack t, string link) => new()
+    /// <summary>A local file in someone's playlist is not on Spotify at all, so there is no link to store.</summary>
+    static string? SpotifyLink(SpotifyTrack t) => t.Kind switch
+    {
+        SpotifyItemKind.Track => $"https://open.spotify.com/track/{t.Id}",
+        SpotifyItemKind.Episode => $"https://open.spotify.com/episode/{t.Id}",
+        _ => null,
+    };
+
+    static ResolvedMedia FromSpotify(SpotifyTrack t, string? link) => new()
     {
         SourceName = "spotify",
         Link = link,
@@ -162,7 +175,9 @@ public class MediaResolver
         ReleaseDate = t.ReleaseDate,
         SpotifyTrackId = t.Id,
         Isrc = t.Isrc,
-        Quality = MatchQuality.SpotifyExact,
+        // A local file's title and artist are only whatever the owner's own tags said, so it is worth a
+        // second look; a track or episode came from the catalogue and is exact.
+        Quality = t.Kind == SpotifyItemKind.LocalFile ? MatchQuality.Raw : MatchQuality.SpotifyExact,
     };
 
     // ---------- Apple Music / Deezer ----------
