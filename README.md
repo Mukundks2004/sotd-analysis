@@ -17,6 +17,21 @@
 dotnet run --project Importer
 ```
 
+### Admin UI
+
+To browse and edit the database, run the API and the web app in two terminals:
+
+```cmd
+dotnet run --project Backend
+```
+
+```cmd
+cd Frontend && npm install && npm run dev
+```
+
+Then open http://localhost:5173. The dev server proxies `/api` and `/files` to the
+backend on http://localhost:5280.
+
 ## About
 
 This repo has all the code required to do a sotd analysis
