@@ -94,6 +94,7 @@ public class SotdDbContext : DbContext
         b.Entity<Song>(e =>
         {
             e.HasIndex(x => x.SpotifyId).IsUnique();
+            e.HasIndex(x => x.Isrc).IsUnique();
             e.HasIndex(x => x.Title);
         });
 
