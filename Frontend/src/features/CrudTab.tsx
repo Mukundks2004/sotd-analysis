@@ -82,6 +82,8 @@ export function CrudTab() {
       if (result.page !== page) setPage(result.page);
       setSelected(new Set());
       setEdits({});
+      // A reload replaces the rows underneath, so no cell should be left mid-edit against stale data.
+      setEditingCell(null);
     } catch (error) {
       const failure = error as { message?: string; detail?: string };
       toast.error(failure.message ?? 'Could not load rows.', failure.detail);
