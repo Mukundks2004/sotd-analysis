@@ -236,7 +236,7 @@ export function CrudTab() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} alignItems="flex-end">
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-end' }}>
         <FormControl size="small" sx={{ minWidth: 240 }}>
           <InputLabel id="crud-table-label">Table</InputLabel>
           <Select
@@ -280,12 +280,12 @@ export function CrudTab() {
         </Stack>
       </Stack>
 
-      <Stack direction="row" justifyContent="flex-end">
+      <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
         <Typography variant="h6">{table.label}</Typography>
       </Stack>
 
       <Paper variant="outlined">
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 1.5 }} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ p: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
           {table.big ? (
             <FormControl size="small" sx={{ minWidth: 110 }}>
               <InputLabel id="crud-size-label">Rows</InputLabel>
@@ -418,7 +418,7 @@ export function CrudTab() {
         </TableContainer>
 
         {table.big && (
-          <Stack direction="row" justifyContent="center" sx={{ p: 1.5 }}>
+          <Stack direction="row" sx={{ p: 1.5, justifyContent: 'center' }}>
             <Pagination
               count={totalPages}
               page={page}
@@ -524,7 +524,7 @@ function Cell({ row, column, edited, editing, onStart, onStop, onChange }: CellP
   if (column.kind === 'image') {
     return (
       <TableCell onClick={onStart} sx={{ cursor: 'text' }}>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           {shown ? (
             <img
               src={`/files/${shown.replace(/^[\\/]+/, '').replace(/\\/g, '/')}`}
