@@ -11,6 +11,11 @@ public class ImporterConfig
     public List<ulong> ChannelIds { get; set; } = new();
     public string SpotifyClientId { get; set; } = "";
     public string SpotifyClientSecret { get; set; } = "";
+    /// <summary>
+    /// Two letter market used for every Spotify and iTunes lookup. It has to be pinned: Spotify hands back a
+    /// different track id for the same recording depending on the market, which otherwise stores one song twice.
+    /// </summary>
+    public string SpotifyMarket { get; set; } = "US";
     public string YtDlpPath { get; set; } = "yt-dlp";
 
     public static ImporterConfig Load(string path)
@@ -38,6 +43,7 @@ public class ImporterConfig
             throw new InvalidOperationException("Config is missing required values: " + string.Join(", ", missing));
         if (string.IsNullOrWhiteSpace(YtDlpPath)) YtDlpPath = "yt-dlp";
         if (string.IsNullOrWhiteSpace(DatabasePath)) DatabasePath = "sotd.db";
+        SpotifyMarket = string.IsNullOrWhiteSpace(SpotifyMarket) ? "US" : SpotifyMarket.Trim().ToUpperInvariant();
     }
 }
 
