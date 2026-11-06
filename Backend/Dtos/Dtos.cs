@@ -41,7 +41,7 @@ public record SourceDto(Guid Id, string Name);
 public record SourceWrite(string Name);
 
 public record SotdEntryDto(Guid Id, Guid SongId, Guid MessageId, Guid SourceId, string? Link, Guid? AttachmentId,
-    int Duration, DateTime? ReleaseDate);
+    int Duration, DateTime? ReleaseDate, DateTime PostedAt);
 public record SotdEntryWrite(Guid SongId, Guid MessageId, Guid SourceId, string? Link, Guid? AttachmentId,
     int Duration, DateTime? ReleaseDate);
 
