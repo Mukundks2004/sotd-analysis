@@ -22,9 +22,10 @@ try
     await ytdlp.EnsureAvailableAsync(); // fail now rather than silently losing every YouTube entry
 
     var log = new ReviewLog(repoRoot);
-    var spotify = new SpotifyClient(http, config.SpotifyClientId, config.SpotifyClientSecret);
+    var spotify = new SpotifyClient(http, config.SpotifyClientId, config.SpotifyClientSecret, config.SpotifyMarket);
     var downloader = new FileDownloader(http);
-    var resolver = new MediaResolver(spotify, ytdlp, new PageMetadataClient(http), http, log);
+    var resolver = new MediaResolver(spotify, ytdlp, new PageMetadataClient(http),
+        new ITunesClient(http, config.SpotifyMarket), new DeezerClient(http), http, log);
 
     await new DiscordImporter(config, repoRoot, dbPath, downloader, spotify, resolver, log).RunAsync();
     return 0;
