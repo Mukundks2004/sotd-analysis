@@ -107,6 +107,7 @@ The primary key is the composite (Message, Profile, Emoji).
 - ID (UUID)
 - Title (string) (not unique, multiple songs with same name)
 - Spotify ID (string, unique) nullable- the Spotify track ID, used to match the same song across posts and sources
+- ISRC (string, unique) nullable- the International Standard Recording Code. The same recording carries the same ISRC on Spotify, Apple Music and Deezer, so this is the most reliable way to tell that a link from one source is the same song as a link from another. Matched on before the Spotify ID, because one recording can have several Spotify IDs (different markets or album releases).
 
 ## Genre [Big] Order By Name Alphabetical
 
