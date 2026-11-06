@@ -23,3 +23,4 @@
 Person who has duplicated the most songs- how many were their own duplicates and how many were other people's
 
 how many kpop songs
+how many playlists are there? a playlist is multiple entries from teh same message
