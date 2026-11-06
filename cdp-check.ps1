@@ -20,16 +20,25 @@ function Send-Cdp([string]$method, [hashtable]$params) {
     return $script:id
 }
 
-function Receive-Cdp([int]$waitFor, [int]$timeoutSeconds = 30) {
-    $buffer = [byte[]]::new(131072)
+function Receive-Cdp([int]$waitFor, [int]$timeoutSeconds = 60) {
+    $buffer = [byte[]]::new(65536)
     $deadline = (Get-Date).AddSeconds($timeoutSeconds)
     $logs = @()
     while ((Get-Date) -lt $deadline) {
-        $segment = [ArraySegment[byte]]::new($buffer)
-        $task = $socket.ReceiveAsync($segment, [Threading.CancellationToken]::None)
-        if (-not $task.Wait(5000)) { continue }
-        $text = [Text.Encoding]::UTF8.GetString($buffer, 0, $task.Result.Count)
-        $message = $text | ConvertFrom-Json
+        # A single CDP message can arrive as several frames, so collect until the end flag.
+        $builder = [Text.StringBuilder]::new()
+        $complete = $false
+        while (-not $complete -and (Get-Date) -lt $deadline) {
+            $segment = [ArraySegment[byte]]::new($buffer)
+            $task = $socket.ReceiveAsync($segment, [Threading.CancellationToken]::None)
+            if (-not $task.Wait(5000)) { continue }
+            [void]$builder.Append([Text.Encoding]::UTF8.GetString($buffer, 0, $task.Result.Count))
+            $complete = $task.Result.EndOfMessage
+        }
+        if (-not $complete) { continue }
+
+        $message = $null
+        try { $message = $builder.ToString() | ConvertFrom-Json } catch { continue }
         if ($message.method -eq 'Runtime.consoleAPICalled' -and $message.params.type -in @('error', 'warning')) {
             $logs += "CONSOLE $($message.params.type): " + (($message.params.args | ForEach-Object { $_.value }) -join ' ')
         }
@@ -50,7 +59,12 @@ $evalId = Send-Cdp 'Runtime.evaluate' @{ expression = $Script; returnByValue = $
 $answer = Receive-Cdp $evalId
 
 Write-Output '===== OUTPUT ====='
-if ($answer.Result) { Write-Output $answer.Result.result.result.value } else { Write-Output '(no result)' }
+if ($answer.Result) {
+    if ($answer.Result.result.exceptionDetails) {
+        Write-Output ('SCRIPT ERROR: ' + $answer.Result.result.exceptionDetails.exception.description)
+    }
+    Write-Output $answer.Result.result.result.value
+} else { Write-Output '(no result)' }
 Write-Output '===== CONSOLE ====='
 if ($answer.Logs.Count -eq 0) { Write-Output '(clean)' } else { $answer.Logs | ForEach-Object { Write-Output $_ } }
 
