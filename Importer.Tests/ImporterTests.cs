@@ -128,6 +128,7 @@ public class LinkClassifierTests
     [InlineData("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x", "spotify", LinkKind.Track)]
     [InlineData("https://open.spotify.com/intl-de/track/4uLU6hMCjMI75M1A2tKUQC", "spotify", LinkKind.Track)]
     [InlineData("https://open.spotify.com/playlist/37i9dQZF1DX", "spotify", LinkKind.Playlist)]
+    [InlineData("https://open.spotify.com/episode/512ojhOuo1ktJprKbVcKyQ", "spotify", LinkKind.Episode)]
     [InlineData("https://open.spotify.com/album/abc", "spotify", LinkKind.Unsupported)]
     [InlineData("https://music.apple.com/us/album/x/1?i=2", "apple music", LinkKind.Track)]
     [InlineData("https://music.apple.com/us/song/halo/123456", "apple music", LinkKind.Track)]

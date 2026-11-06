@@ -152,7 +152,7 @@ public class SpotifyClient
     /// file from the owner's own machine. All three are songs of the day, so none of them is dropped —
     /// they only differ in how much Spotify knows about them.
     /// </summary>
-    internal static SpotifyTrack? ParsePlaylistItem(JsonElement t)
+    public static SpotifyTrack? ParsePlaylistItem(JsonElement t)
     {
         if (t.ValueKind != JsonValueKind.Object) return null;
         if (t.TryGetProperty("is_local", out var local) && local.ValueKind == JsonValueKind.True)
@@ -192,7 +192,7 @@ public class SpotifyClient
     /// A podcast episode. It has a real Spotify id, but never an ISRC and never an artist, so the show it
     /// belongs to is credited instead — that is who a listener would name.
     /// </summary>
-    internal static SpotifyTrack? ParseEpisode(JsonElement t)
+    public static SpotifyTrack? ParseEpisode(JsonElement t)
     {
         if (t.ValueKind != JsonValueKind.Object) return null;
         if (ParseName(t) is not { } name) return null;
