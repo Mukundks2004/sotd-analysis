@@ -53,11 +53,12 @@ function depths(nodeIds: string[], edges: GenreEdge[]): Map<string, number> {
 export function GenreTab() {
   const [graph, setGraph] = useState<GenreGraph>({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
-  const [, setTick] = useState(0);
+  // The simulation mutates these objects in place; a fresh array per tick is what makes React redraw.
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [links, setLinks] = useState<Link[]>([]);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const nodesRef = useRef<Node[]>([]);
-  const linksRef = useRef<Link[]>([]);
   const simRef = useRef<Simulation<Node, Link> | null>(null);
   const sizeRef = useRef({ width: 900, height: 600 });
 
@@ -109,7 +110,7 @@ export function GenreTab() {
     );
     const { width, height } = sizeRef.current;
 
-    const nodes: Node[] = graph.nodes.map((node, index) => {
+    const simNodes: Node[] = graph.nodes.map((node, index) => {
       const old = previous.get(node.id);
       return {
         id: node.id,
@@ -124,8 +125,8 @@ export function GenreTab() {
       };
     });
 
-    const byId = new Map(nodes.map((node) => [node.id, node]));
-    const links: Link[] = graph.edges
+    const byId = new Map(simNodes.map((node) => [node.id, node]));
+    const simLinks: Link[] = graph.edges
       .filter((edge) => byId.has(edge.parentId) && byId.has(edge.childId))
       .map((edge) => ({
         parentId: edge.parentId,
@@ -134,15 +135,16 @@ export function GenreTab() {
         target: byId.get(edge.childId)!,
       }));
 
-    nodesRef.current = nodes;
-    linksRef.current = links;
+    nodesRef.current = simNodes;
+    setNodes(simNodes);
+    setLinks(simLinks);
 
     simRef.current?.stop();
-    const simulation = forceSimulation<Node, Link>(nodes)
+    const simulation = forceSimulation<Node, Link>(simNodes)
       .force('charge', forceManyBody<Node>().strength(-900))
       .force(
         'link',
-        forceLink<Node, Link>(links)
+        forceLink<Node, Link>(simLinks)
           .id((node) => node.id)
           .distance(ROW_HEIGHT)
           .strength(0.6),
@@ -152,7 +154,7 @@ export function GenreTab() {
       .force('rows', forceY<Node>((node) => 80 + node.depth * ROW_HEIGHT).strength(0.45))
       .force('collide', forceCollide<Node>(NODE_RADIUS + 12))
       .alpha(0.9)
-      .on('tick', () => setTick((value) => value + 1));
+      .on('tick', () => setNodes([...simNodes]));
 
     simRef.current = simulation;
     return () => {
@@ -263,12 +265,12 @@ export function GenreTab() {
     return () => window.removeEventListener('keydown', onKey);
   }, [creating]);
 
-  const nodeById = useMemo(() => new Map(nodesRef.current.map((node) => [node.id, node])), [nodesRef.current.length]);
-  const fromNode = linkFrom ? nodesRef.current.find((node) => node.id === linkFrom) : undefined;
+  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+  const fromNode = linkFrom ? nodes.find((node) => node.id === linkFrom) : undefined;
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           Drag a node to move it. Drag from the small handle on a node onto another node to make the first the
           parent. Right-click empty space to add a genre, or right-click an arrow to remove that parent.
@@ -276,7 +278,7 @@ export function GenreTab() {
         <Box sx={{ flexGrow: 1 }} />
         {(busy || loading) && <CircularProgress size={18} />}
         <Typography variant="body2" color="text.secondary">
-          {graph.nodes.length} genres
+          {nodes.length} genres
         </Typography>
       </Stack>
 
@@ -316,7 +318,7 @@ export function GenreTab() {
             </marker>
           </defs>
 
-          {linksRef.current.map((link) => {
+          {links.map((link) => {
             const source = link.source as Node;
             const target = link.target as Node;
             const dx = (target.x ?? 0) - (source.x ?? 0);
@@ -350,7 +352,7 @@ export function GenreTab() {
             );
           })}
           {/* A second thin pass draws the visible line; the thick one above only catches right-clicks. */}
-          {linksRef.current.map((link) => {
+          {links.map((link) => {
             const source = link.source as Node;
             const target = link.target as Node;
             const dx = (target.x ?? 0) - (source.x ?? 0);
@@ -384,7 +386,7 @@ export function GenreTab() {
             />
           )}
 
-          {nodesRef.current.map((node) => (
+          {nodes.map((node) => (
             <g key={node.id}>
               <circle
                 cx={node.x}
@@ -469,7 +471,7 @@ export function GenreTab() {
                     if (event.key === 'Enter') void createGenre();
                   }}
                 />
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                   <Button size="small" onClick={() => setCreating(null)}>
                     Cancel
                   </Button>
