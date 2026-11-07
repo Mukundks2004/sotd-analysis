@@ -26,6 +26,13 @@ public class ImporterConfig
     /// </summary>
     public int MaxParallelism { get; set; } = 8;
 
+    /// <summary>
+    /// Smallest gap, in milliseconds, between two Spotify requests. The default paces a full multi-year
+    /// import comfortably inside the rate limit; raise it if Spotify still refuses requests, lower it only
+    /// for small runs. Zero restores the old behaviour of going as fast as Spotify will allow.
+    /// </summary>
+    public int SpotifyMinIntervalMs { get; set; } = 150;
+
     public static ImporterConfig Load(string path)
     {
         var json = File.ReadAllText(path);
@@ -52,6 +59,7 @@ public class ImporterConfig
         if (string.IsNullOrWhiteSpace(YtDlpPath)) YtDlpPath = "yt-dlp";
         if (string.IsNullOrWhiteSpace(DatabasePath)) DatabasePath = "sotd.db";
         MaxParallelism = Math.Clamp(MaxParallelism, 1, 32);
+        SpotifyMinIntervalMs = Math.Clamp(SpotifyMinIntervalMs, 0, 5000);
         SpotifyMarket = string.IsNullOrWhiteSpace(SpotifyMarket) ? "US" : SpotifyMarket.Trim().ToUpperInvariant();
     }
 }
