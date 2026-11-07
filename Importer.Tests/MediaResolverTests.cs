@@ -189,6 +189,35 @@ public class MediaResolverTests
     }
 
     [Test]
+    public async Task TheSameLinkPostedTwiceIsOnlyResolvedOnceEvenWhenBothAreInFlightTogether()
+    {
+        const string url = "https://open.spotify.com/track/t1";
+        Classifies(url, new LinkInfo(url, "spotify", LinkKind.Track, "t1"));
+        var entered = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+        var calls = 0;
+        _spotify.Setup(s => s.GetTrackAsync("t1")).Returns(async () =>
+        {
+            Interlocked.Increment(ref calls);
+            entered.TrySetResult();
+            await release.Task;
+            return (SpotifyTrack?)new SpotifyTrack("t1", "Creep", new() { new MediaArtist("Radiohead", "r1") }, 238, null);
+        });
+
+        var inFlight = Enumerable.Range(0, 8)
+            .Select(_ => Task.Run(() => _resolver.ResolveLinkAsync(url, "ctx"))).ToArray();
+        await entered.Task;
+        await Task.Delay(50);
+        release.SetResult();
+        var results = await Task.WhenAll(inFlight);
+
+        // Messages are prepared in parallel, so the cache has to collapse the race rather than let every
+        // caller miss and resolve the same link eight times into eight different songs.
+        Assert.That(calls, Is.EqualTo(1));
+        Assert.That(results, Is.All.SameAs(results[0]));
+    }
+
+    [Test]
     public async Task UploadedFile_FallsBackToItsFilenameWhenItHasNoTags()
     {
         _files.Setup(f => f.Read("C:\\tmp\\x.mp3")).Returns((FileMetadata?)null);
