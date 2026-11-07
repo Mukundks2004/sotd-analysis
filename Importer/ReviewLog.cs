@@ -1,7 +1,7 @@
 namespace Sotd.Importer;
 
 /// <summary>Plain-text review logs under Logs/ (gitignored) for things the user should check by hand.</summary>
-public class ReviewLog
+public class ReviewLog : IReviewLog
 {
     readonly string _dir;
     readonly string _stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
