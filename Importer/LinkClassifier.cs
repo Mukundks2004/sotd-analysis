@@ -25,7 +25,7 @@ public enum LinkKind
 /// </param>
 public record LinkInfo(string Url, string Source, LinkKind Kind, string? ProviderId = null);
 
-public static class LinkClassifier
+public class LinkClassifier : ILinkClassifier
 {
     static readonly Regex SpotifyPath = new(
         @"^/(?:intl-[a-z\-]+/)?(track|playlist|album|artist|episode|show)/([A-Za-z0-9]+)", RegexOptions.Compiled);
@@ -70,7 +70,7 @@ public static class LinkClassifier
     static bool IsHost(string host, string domain) => host == domain || host.EndsWith("." + domain);
 
     /// <summary>Returns null if the link is not on a known music/video host.</summary>
-    public static LinkInfo? Classify(string url)
+    public LinkInfo? Classify(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return null;
