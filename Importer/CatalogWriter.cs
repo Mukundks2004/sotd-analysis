@@ -4,16 +4,15 @@ using Sotd.Database;
 namespace Sotd.Importer;
 
 /// <summary>In-memory index of song ids by match-normalized title, so name matching does not scan the Song table.</summary>
-public class SongTitleIndex
+public class SongTitleIndex : ISongTitleIndex
 {
     readonly Dictionary<string, List<Guid>> _byTitle = new();
 
-    public static async Task<SongTitleIndex> LoadAsync(SotdDbContext db)
+    public async Task LoadAsync(SotdDbContext db)
     {
-        var index = new SongTitleIndex();
+        _byTitle.Clear();
         foreach (var s in await db.Songs.AsNoTracking().Select(s => new { s.Id, s.Title }).ToListAsync())
-            index.Add(s.Title, s.Id);
-        return index;
+            Add(s.Title, s.Id);
     }
 
     public void Add(string title, Guid id)
@@ -27,18 +26,35 @@ public class SongTitleIndex
         _byTitle.TryGetValue(Text.NormalizeForMatching(title), out var list) ? list : Array.Empty<Guid>();
 }
 
+/// <summary>Hands out a <see cref="CatalogWriter"/> bound to the context the caller is using for one message.</summary>
+public class CatalogWriterFactory : ICatalogWriterFactory
+{
+    readonly ISongTitleIndex _songs;
+    readonly ISpotifyClient _spotify;
+    readonly IReviewLog _log;
+
+    public CatalogWriterFactory(ISongTitleIndex songs, ISpotifyClient spotify, IReviewLog log)
+    {
+        _songs = songs;
+        _spotify = spotify;
+        _log = log;
+    }
+
+    public ICatalogWriter Create(SotdDbContext db) => new CatalogWriter(db, _songs, _spotify, _log);
+}
+
 /// <summary>
 /// Writes resolved songs to the db, matching existing artists and songs first: by ISRC, then Spotify ID,
 /// then by name (artist) or match-normalized title plus ordered artists (song).
 /// </summary>
-public class CatalogWriter
+public class CatalogWriter : ICatalogWriter
 {
     readonly SotdDbContext _db;
-    readonly SongTitleIndex _songs;
-    readonly SpotifyClient _spotify;
-    readonly ReviewLog _log;
+    readonly ISongTitleIndex _songs;
+    readonly ISpotifyClient _spotify;
+    readonly IReviewLog _log;
 
-    public CatalogWriter(SotdDbContext db, SongTitleIndex songs, SpotifyClient spotify, ReviewLog log)
+    public CatalogWriter(SotdDbContext db, ISongTitleIndex songs, ISpotifyClient spotify, IReviewLog log)
     {
         _db = db;
         _songs = songs;
