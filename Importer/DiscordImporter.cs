@@ -6,7 +6,7 @@ using Attachment = Sotd.Database.Attachment;
 
 namespace Sotd.Importer;
 
-public class DiscordImporter
+public class DiscordImporter : IDiscordImporter
 {
     static readonly HashSet<string> AudioVideoExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -16,29 +16,30 @@ public class DiscordImporter
 
     readonly ImporterConfig _config;
     readonly string _repoRoot;
-    readonly string _dbPath;
-    readonly FileDownloader _downloader;
-    readonly SpotifyClient _spotify;
-    readonly MediaResolver _resolver;
-    readonly ReviewLog _log;
+    readonly ISotdDbContextFactory _dbs;
+    readonly IFileDownloader _downloader;
+    readonly IMediaResolver _resolver;
+    readonly IProfileSync _profiles;
+    readonly IEmojiSync _emojis;
+    readonly ISongTitleIndex _songIndex;
+    readonly ICatalogWriterFactory _writers;
 
-    ProfileSync _profiles = null!;
-    EmojiSync _emojis = null!;
-    SongTitleIndex _songIndex = null!;
-
-    public DiscordImporter(ImporterConfig config, string repoRoot, string dbPath, FileDownloader downloader,
-        SpotifyClient spotify, MediaResolver resolver, ReviewLog log)
+    public DiscordImporter(ImporterConfig config, string repoRoot, ISotdDbContextFactory dbs,
+        IFileDownloader downloader, IMediaResolver resolver, IProfileSync profiles, IEmojiSync emojis,
+        ISongTitleIndex songIndex, ICatalogWriterFactory writers)
     {
         _config = config;
         _repoRoot = repoRoot;
-        _dbPath = dbPath;
+        _dbs = dbs;
         _downloader = downloader;
-        _spotify = spotify;
         _resolver = resolver;
-        _log = log;
+        _profiles = profiles;
+        _emojis = emojis;
+        _songIndex = songIndex;
+        _writers = writers;
     }
 
-    SotdDbContext NewDb() => SotdDbContext.ForSqliteFile(_dbPath);
+    SotdDbContext NewDb() => _dbs.Create();
 
     public async Task RunAsync()
     {
@@ -55,10 +56,9 @@ public class DiscordImporter
         var memberIds = members.Select(m => m.Id).ToHashSet();
         Console.WriteLine($"  {members.Count} members");
 
-        _profiles = new ProfileSync(_downloader, _repoRoot, memberIds);
-        _emojis = new EmojiSync(_downloader, _repoRoot);
+        _profiles.SetMembers(memberIds);
         using (var db = NewDb())
-            _songIndex = await SongTitleIndex.LoadAsync(db);
+            await _songIndex.LoadAsync(db);
 
         // Refresh profiles we already have that are still in the server.
         using (var db = NewDb())
@@ -186,7 +186,7 @@ public class DiscordImporter
 
         await AddReactionsAsync(db, msg, message);
 
-        var writer = new CatalogWriter(db, _songIndex, _spotify, _log);
+        var writer = _writers.Create(db);
         var entryCount = 0;
         foreach (var link in Text.ExtractLinks(msg.Content))
             foreach (var media in await _resolver.ResolveLinkAsync(link, context))
