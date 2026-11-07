@@ -8,7 +8,7 @@ namespace Sotd.Importer;
 /// their HTML describes the *album*, so scraping used to put the album name in the song title and leave the
 /// duration at 0. The lookup API needs no key and answers with the exact track.
 /// </summary>
-public class ITunesClient
+public class ITunesClient : IITunesClient
 {
     readonly HttpClient _http;
     readonly string _country;
@@ -79,7 +79,7 @@ public class ITunesClient
 /// Deezer metadata via its public API (no key needed). Deezer returns the ISRC, which is what ties the same
 /// recording to its Spotify and Apple Music counterparts.
 /// </summary>
-public class DeezerClient
+public class DeezerClient : IDeezerClient
 {
     readonly HttpClient _http;
 
