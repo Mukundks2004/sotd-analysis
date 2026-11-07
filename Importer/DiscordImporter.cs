@@ -151,7 +151,8 @@ public class DiscordImporter : IDiscordImporter
             {
                 entries += await WriteMessageAsync(prepared, dbChannelId);
                 messages++;
-                if (messages % 50 == 0)
+                // The first one is worth announcing: on a fresh run it is the proof that writing has started.
+                if (messages == 1 || messages % 50 == 0)
                     Console.WriteLine($"  #{channel.Name}: {messages} messages, {entries} entries (at {prepared.Message.Timestamp:yyyy-MM-dd})");
             });
 
