@@ -7,5 +7,6 @@
   "SpotifyClientSecret": "your spotify client secret",
   "SpotifyMarket": "US",
   "YtDlpPath": "yt-dlp",
-  "MaxParallelism": 8
+  "MaxParallelism": 8,
+  "SpotifyMinIntervalMs": 150
 }
