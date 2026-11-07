@@ -1,20 +1,6 @@
 namespace Sotd.Database;
 
 // Entities mirror Database/spec.md. Discord snowflakes are stored as long (signed 64-bit INTEGER).
-
-public class Attachment
-{
-    public Guid Id { get; set; }
-    public long DiscordId { get; set; }
-    public Guid MessageId { get; set; }
-    public Message Message { get; set; } = null!;
-    public string Filename { get; set; } = "";
-    public Guid FileExtensionId { get; set; }
-    public FileExtension FileExtension { get; set; } = null!;
-    public long Size { get; set; }
-    public string Path { get; set; } = "";
-}
-
 public class Emoji
 {
     public Guid Id { get; set; }
