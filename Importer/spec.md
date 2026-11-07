@@ -13,6 +13,7 @@ All input comes from a config file (e.g. `config.json`, gitignored, with a commi
 - Spotify client ID and client secret
 - Spotify market (ISO country code, default `US`) — every Spotify call is pinned to one market so that track relinking cannot return a different ID for the same recording between runs
 - Path to the `yt-dlp` executable (defaults to `yt-dlp` on the PATH)
+- `MaxParallelism` (default `8`, clamped to 1–32) — how many messages may have their network work in flight at once. See "Parallelism" below.
 
 The `Download/` folder is also gitignored.
 
@@ -48,6 +49,19 @@ File names built from usernames, filenames or emoji names are sanitized of chara
 ### Profile updates
 
 Every run, for every profile already in the db that is seen (as a poster, a reactor, or in the guild member list), update its username, `Is Current Member` and profile picture. Profiles in the db but missing from the guild member list get `Is Current Member = false`.
+
+### Parallelism
+
+Almost all of the run time is network: Spotify, iTunes and Deezer lookups, `yt-dlp`, page metadata, attachment downloads and reaction lists. The writing itself is fast. So the per-message work is split in two:
+
+- **Prepare** (parallel, up to `MaxParallelism` at once) — resolve the message's links, download its attachments and identify the audio/video ones, and list who reacted. Touches no database state.
+- **Write** (serial, strictly in message order) — profiles, emojis, the message row, attachment rows, reactions and entries, in one transaction per message.
+
+`OrderedPipeline` joins the two: it starts preparations as the messages stream out but hands the results to the writer one at a time, in the order the messages were read. Prepared messages are held in a bounded queue, so the reader can never run far ahead of the writer.
+
+The writing has to stay serial and in order. Sqlite accepts one writer at a time; a reply needs the message it answers to be stored already; song de-duplication depends on the order songs are first seen; and resuming keys off the highest stored message ID, so a gap left behind by a crash would be skipped forever. Partitioning the work by month or by year instead would break all four. If anything fails, the run stops and what was already written is an unbroken prefix, so the next run resumes cleanly.
+
+Two consequences of preparing in parallel: the same link posted by several messages at once is resolved exactly once (the resolver cache caches the in-flight lookup, not just the result), and review log lines from different messages can interleave.
 
 ## What counts as an entry
 
