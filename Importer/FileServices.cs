@@ -3,9 +3,9 @@ namespace Sotd.Importer;
 public record FileMetadata(string? Title, string? Artist, int DurationSeconds);
 
 /// <summary>Reads duration and tags out of an uploaded audio/video file.</summary>
-public static class FileMetadataReader
+public class FileMetadataReader : IFileMetadataReader
 {
-    public static FileMetadata? Read(string path)
+    public FileMetadata? Read(string path)
     {
         try
         {
@@ -24,7 +24,7 @@ public static class FileMetadataReader
     }
 }
 
-public class FileDownloader
+public class FileDownloader : IFileDownloader
 {
     readonly HttpClient _http;
 
