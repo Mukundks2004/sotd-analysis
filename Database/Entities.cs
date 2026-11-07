@@ -2,18 +2,7 @@ namespace Sotd.Database;
 
 // Entities mirror Database/spec.md. Discord snowflakes are stored as long (signed 64-bit INTEGER).
 
-public class Song
-{
-    public Guid Id { get; set; }
-    public string Title { get; set; } = "";
-    public string? SpotifyId { get; set; }
-    /// <summary>
-    /// International Standard Recording Code. The same recording has the same ISRC on Spotify, Apple Music,
-    /// Deezer and so on, so this is what ties one song together across sources.
-    /// </summary>
-    public string? Isrc { get; set; }
-    public List<SongArtist> SongArtists { get; set; } = new();
-}
+
 
 public class Genre
 {
