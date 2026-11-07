@@ -15,6 +15,7 @@ public class SpotifyClient : ISpotifyClient
     readonly string _market;
     string? _token;
     DateTime _tokenExpires = DateTime.MinValue;
+    readonly SemaphoreSlim _tokenLock = new(1, 1);
 
     /// <param name="market">
     /// Pinning a market matters: Spotify "track relinking" hands back a different track id for the same
@@ -32,16 +33,27 @@ public class SpotifyClient : ISpotifyClient
     {
         if (_token != null && DateTime.UtcNow < _tokenExpires) return _token;
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, "https://accounts.spotify.com/api/token");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
-            Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_clientId}:{_clientSecret}")));
-        req.Content = new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("grant_type", "client_credentials") });
-        using var resp = await _http.SendAsync(req);
-        resp.EnsureSuccessStatusCode();
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        _token = doc.RootElement.GetProperty("access_token").GetString()!;
-        _tokenExpires = DateTime.UtcNow.AddSeconds(doc.RootElement.GetProperty("expires_in").GetInt32() - 60);
-        return _token;
+        // Several messages are prepared at once, so without this they would all request a token together.
+        await _tokenLock.WaitAsync();
+        try
+        {
+            if (_token != null && DateTime.UtcNow < _tokenExpires) return _token;
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://accounts.spotify.com/api/token");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_clientId}:{_clientSecret}")));
+            req.Content = new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("grant_type", "client_credentials") });
+            using var resp = await _http.SendAsync(req);
+            resp.EnsureSuccessStatusCode();
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            _token = doc.RootElement.GetProperty("access_token").GetString()!;
+            _tokenExpires = DateTime.UtcNow.AddSeconds(doc.RootElement.GetProperty("expires_in").GetInt32() - 60);
+            return _token;
+        }
+        finally
+        {
+            _tokenLock.Release();
+        }
     }
 
     /// <summary>GET with retry on 429/401. Returns null for 400/404 (not found / bad id).</summary>
