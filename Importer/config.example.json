@@ -6,5 +6,6 @@
   "SpotifyClientId": "your spotify client id",
   "SpotifyClientSecret": "your spotify client secret",
   "SpotifyMarket": "US",
-  "YtDlpPath": "yt-dlp"
+  "YtDlpPath": "yt-dlp",
+  "MaxParallelism": 8
 }
