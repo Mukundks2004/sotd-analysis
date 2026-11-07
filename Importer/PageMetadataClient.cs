@@ -12,7 +12,7 @@ public record PageMetadata(string Title, string? Artist, int? DurationSeconds, D
 /// Fallback for hosts with no usable API and that yt-dlp cannot read (Tidal, Amazon Music, ...):
 /// reads schema.org JSON-LD and Open Graph tags from the page.
 /// </summary>
-public class PageMetadataClient
+public class PageMetadataClient : IPageMetadataClient
 {
     static readonly Regex JsonLdRx = new(
         @"<script[^>]*type=[""']application/ld\+json[""'][^>]*>(.*?)</script>",
