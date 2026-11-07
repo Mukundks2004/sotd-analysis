@@ -2,14 +2,6 @@ namespace Sotd.Database;
 
 // Entities mirror Database/spec.md. Discord snowflakes are stored as long (signed 64-bit INTEGER).
 
-public class ArtistGenre
-{
-    public Guid ArtistId { get; set; }
-    public Artist Artist { get; set; } = null!;
-    public Guid GenreId { get; set; }
-    public Genre Genre { get; set; } = null!;
-}
-
 public class Source
 {
     public Guid Id { get; set; }
