@@ -23,7 +23,8 @@ try
     await ytdlp.EnsureAvailableAsync(); // fail now rather than silently losing every YouTube entry
 
     var log = new ReviewLog(repoRoot);
-    var spotify = new SpotifyClient(http, config.SpotifyClientId, config.SpotifyClientSecret, config.SpotifyMarket);
+    var spotify = new SpotifyClient(http, config.SpotifyClientId, config.SpotifyClientSecret, config.SpotifyMarket,
+        minInterval: TimeSpan.FromMilliseconds(config.SpotifyMinIntervalMs));
     var downloader = new FileDownloader(http);
     var resolver = new MediaResolver(spotify, ytdlp, new PageMetadataClient(http),
         new ITunesClient(http, config.SpotifyMarket), new DeezerClient(http), new LinkClassifier(),
