@@ -310,8 +310,8 @@ export function GenreTab() {
               viewBox="0 0 10 10"
               refX="10"
               refY="5"
-              markerWidth="7"
-              markerHeight="7"
+              markerWidth="2.1"
+              markerHeight="2.1"
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#5c6bc0" />
@@ -337,7 +337,6 @@ export function GenreTab() {
                 stroke="#5c6bc0"
                 strokeWidth={10}
                 strokeOpacity={0.001}
-                markerEnd="url(#genre-arrow)"
                 style={{ cursor: 'context-menu' }}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -351,7 +350,9 @@ export function GenreTab() {
               />
             );
           })}
-          {/* A second thin pass draws the visible line; the thick one above only catches right-clicks. */}
+          {/* A second thin pass draws the visible line and its arrowhead; the thick one above only
+              catches right-clicks, and must not draw a marker of its own: markers scale with stroke
+              width and ignore stroke-opacity, so it would paint a huge opaque arrow over this one. */}
           {links.map((link) => {
             const source = link.source as Node;
             const target = link.target as Node;
