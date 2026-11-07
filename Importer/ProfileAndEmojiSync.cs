@@ -6,18 +6,24 @@ using Emoji = Sotd.Database.Emoji;
 namespace Sotd.Importer;
 
 /// <summary>Creates profiles on first sight and refreshes username, membership and picture once per run.</summary>
-public class ProfileSync
+public class ProfileSync : IProfileSync
 {
-    readonly FileDownloader _downloader;
+    readonly IFileDownloader _downloader;
     readonly string _repoRoot;
-    readonly HashSet<ulong> _memberIds;
+    readonly HashSet<ulong> _memberIds = new();
     readonly HashSet<ulong> _updatedThisRun = new();
 
-    public ProfileSync(FileDownloader downloader, string repoRoot, HashSet<ulong> memberIds)
+    public ProfileSync(IFileDownloader downloader, string repoRoot)
     {
         _downloader = downloader;
         _repoRoot = repoRoot;
-        _memberIds = memberIds;
+    }
+
+    /// <summary>The guild member list is only known once the run has started, so it is set rather than injected.</summary>
+    public void SetMembers(IEnumerable<ulong> memberIds)
+    {
+        _memberIds.Clear();
+        foreach (var id in memberIds) _memberIds.Add(id);
     }
 
     public async Task<Profile> EnsureAsync(SotdDbContext db, IUser user)
@@ -72,12 +78,12 @@ public class ProfileSync
     }
 }
 
-public class EmojiSync
+public class EmojiSync : IEmojiSync
 {
-    readonly FileDownloader _downloader;
+    readonly IFileDownloader _downloader;
     readonly string _repoRoot;
 
-    public EmojiSync(FileDownloader downloader, string repoRoot)
+    public EmojiSync(IFileDownloader downloader, string repoRoot)
     {
         _downloader = downloader;
         _repoRoot = repoRoot;
