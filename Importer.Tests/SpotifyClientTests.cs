@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Sotd.Importer;
 
@@ -78,4 +79,168 @@ public class SpotifyClientTests
     [TestCase(null, null)]
     public void IsrcsAreNormalisedBeforeTheyAreUsedAsIdentity(string? raw, string? expected) =>
         Assert.That(SpotifyClient.NormalizeIsrc(raw), Is.EqualTo(expected));
+}
+
+/// <summary>
+/// What the client does when Spotify says "too many requests". The importer prepares many messages at once
+/// and they all share one app-wide quota, so getting this wrong stalls the whole run.
+/// </summary>
+[TestFixture]
+public class SpotifyClientRateLimitTests
+{
+    /// <summary>Answers the token request, then whatever the test queued for the api calls.</summary>
+    sealed class StubHandler : HttpMessageHandler
+    {
+        readonly Func<int, HttpResponseMessage> _reply;
+        int _apiCalls;
+        public int ApiCalls => _apiCalls;
+        public int Peak;
+        int _inFlight;
+
+        public StubHandler(Func<int, HttpResponseMessage> reply) => _reply = reply;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            if (request.RequestUri!.Host == "accounts.spotify.com")
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"access_token":"tok","expires_in":3600}"""),
+                };
+
+            var now = Interlocked.Increment(ref _inFlight);
+            Peak = Math.Max(Peak, now);
+            await Task.Delay(20, ct);
+            Interlocked.Decrement(ref _inFlight);
+            return _reply(Interlocked.Increment(ref _apiCalls));
+        }
+    }
+
+    static HttpResponseMessage TooManyRequests(TimeSpan retryAfter)
+    {
+        var resp = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        resp.Headers.Add("Retry-After", ((int)retryAfter.TotalSeconds).ToString());
+        return resp;
+    }
+
+    static HttpResponseMessage Found() => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent("""{"tracks":{"items":[]}}"""),
+    };
+
+    [Test]
+    public void AnAbsurdRetryAfterIsReportedInsteadOfSleptThrough()
+    {
+        // This is the real failure: Spotify answers a badly over-quota app with hours, and waiting on that
+        // is indistinguishable from a hang. It has to come back as an error the user can act on.
+        var handler = new StubHandler(_ => TooManyRequests(TimeSpan.FromHours(21)));
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US",
+            maxConcurrentRequests: 2, maxBackoff: TimeSpan.FromMinutes(10));
+
+        var ex = Assert.ThrowsAsync<HttpRequestException>(() => client.SearchTracksAsync("creep"));
+
+        Assert.That(ex!.Message, Does.Contain("21.0h"));
+        Assert.That(ex.Message, Does.Contain("SpotifyMinIntervalMs"));
+        Assert.That(handler.ApiCalls, Is.EqualTo(1), "it should give up, not keep retrying");
+    }
+
+    [Test]
+    public async Task AShortRetryAfterIsWaitedOutAndTheCallSucceeds()
+    {
+        var handler = new StubHandler(call => call == 1 ? TooManyRequests(TimeSpan.FromSeconds(1)) : Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US");
+
+        Assert.That(await client.SearchTracksAsync("creep"), Is.Empty);
+        Assert.That(handler.ApiCalls, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task ConcurrentLookupsAreHeldToTheRequestLimitBecauseTheQuotaIsAppWide()
+    {
+        var handler = new StubHandler(_ => Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US", maxConcurrentRequests: 2);
+
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(i => client.SearchTracksAsync($"q{i}")));
+
+        Assert.That(handler.ApiCalls, Is.EqualTo(10));
+        Assert.That(handler.Peak, Is.LessThanOrEqualTo(2));
+    }
+
+    [Test]
+    public async Task AfterBeingToldOffTheClientPacesItselfInsteadOfChargingStraightBackIn()
+    {
+        var handler = new StubHandler(call => call == 1 ? TooManyRequests(TimeSpan.FromSeconds(1)) : Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US");
+
+        await client.SearchTracksAsync("creep");
+        var started = DateTime.UtcNow;
+        for (var i = 0; i < 4; i++) await client.SearchTracksAsync($"q{i}");
+        var elapsed = DateTime.UtcNow - started;
+
+        // Four calls at the 300ms gap a single 429 introduces cannot finish instantly.
+        Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromMilliseconds(600)));
+    }
+
+    [Test]
+    public async Task TheSameSearchIsOnlySentOnceHoweverOftenItIsAsked()
+    {
+        // A song of the day channel reposts artists constantly, and one entry tries several phrasings of the
+        // same title, so without this a multi-thousand message import spends its quota asking twice.
+        var handler = new StubHandler(_ => Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US",
+            minInterval: TimeSpan.Zero);
+
+        for (var i = 0; i < 5; i++) await client.SearchTracksAsync("radiohead creep");
+        await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => client.SearchTracksAsync("radiohead creep")));
+
+        Assert.That(handler.ApiCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ArtistGenresAreOnlyFetchedOncePerArtist()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"genres":["shoegaze"]}"""),
+        });
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US",
+            minInterval: TimeSpan.Zero);
+
+        var first = await client.GetArtistGenresAsync("abc");
+        var second = await client.GetArtistGenresAsync("abc");
+
+        Assert.That(handler.ApiCalls, Is.EqualTo(1));
+        Assert.That(second, Is.EqualTo(first));
+    }
+
+    [Test]
+    public async Task AFailedLookupIsNotRememberedAsTheAnswerForever()
+    {
+        // One transient network error must not poison that query for the rest of a multi-hour run.
+        var handler = new StubHandler(call => call == 1
+            ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            : Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US",
+            minInterval: TimeSpan.Zero);
+
+        Assert.ThrowsAsync<HttpRequestException>(() => client.SearchTracksAsync("creep"));
+        Assert.That(await client.SearchTracksAsync("creep"), Is.Empty);
+        Assert.That(handler.ApiCalls, Is.EqualTo(2), "the retry has to actually reach Spotify again");
+    }
+
+    [Test]
+    public async Task RequestsArePacedFromTheStartWithoutHavingToBeRefusedFirst()
+    {
+        // The whole point: the old client began unpaced and could only find the limit by being told off,
+        // and every telling off costs a longer penalty than the last.
+        var handler = new StubHandler(_ => Found());
+        var client = new SpotifyClient(new HttpClient(handler), "id", "secret", "US",
+            minInterval: TimeSpan.FromMilliseconds(200));
+
+        var started = DateTime.UtcNow;
+        for (var i = 0; i < 4; i++) await client.SearchTracksAsync($"q{i}");
+        var elapsed = DateTime.UtcNow - started;
+
+        Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromMilliseconds(500)));
+        Assert.That(handler.ApiCalls, Is.EqualTo(4), "pacing must not drop requests");
+    }
 }
