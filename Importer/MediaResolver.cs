@@ -33,8 +33,11 @@ public class MediaResolver : IMediaResolver
     /// <summary>
     /// The same link gets posted more than once over five years. Caching keeps the importer from asking the
     /// same questions again and, more importantly, makes repeats resolve to exactly the same song.
+    /// The value is the in-flight task, so when several messages posted the same link are being prepared at
+    /// once they all wait on one lookup instead of racing to make the same calls.
     /// </summary>
-    readonly Dictionary<string, List<ResolvedMedia>> _cache = new(StringComparer.OrdinalIgnoreCase);
+    readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<List<ResolvedMedia>>>> _cache =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public MediaResolver(ISpotifyClient spotify, IYtDlpClient ytdlp, IPageMetadataClient page, IITunesClient itunes,
         IDeezerClient deezer, ILinkClassifier classifier, IFileMetadataReader files, HttpClient http, IReviewLog log)
@@ -57,10 +60,10 @@ public class MediaResolver : IMediaResolver
     public async Task<List<ResolvedMedia>> ResolveLinkAsync(string url, string context)
     {
         var key = CacheKey(url);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
-        var result = await ResolveUncachedAsync(url, context);
-        _cache[key] = result;
-        return result;
+        // Lazy with ExecutionAndPublication so the factory runs once even if several threads miss together.
+        var entry = _cache.GetOrAdd(key, _ => new Lazy<Task<List<ResolvedMedia>>>(
+            () => ResolveUncachedAsync(url, context), LazyThreadSafetyMode.ExecutionAndPublication));
+        return await entry.Value;
     }
 
     async Task<List<ResolvedMedia>> ResolveUncachedAsync(string url, string context)
