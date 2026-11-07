@@ -6,6 +6,24 @@ using Attachment = Sotd.Database.Attachment;
 
 namespace Sotd.Importer;
 
+/// <summary>An attachment that has been downloaded and, if it is audio or video, already identified.</summary>
+public sealed record PreparedAttachment(IAttachment Source, string RelativePath, string Extension, ResolvedMedia? Media);
+
+/// <summary>One emote on a message together with everyone who reacted with it.</summary>
+public sealed record PreparedReaction(IEmote Emote, List<IUser> Users);
+
+/// <summary>
+/// A message with all of its slow network work already done, ready to be written to the database.
+/// Preparing these in parallel is what makes the importer fast; they are still written one at a time
+/// in message order so ordering, resume and song de-duplication behave exactly as they did serially.
+/// </summary>
+public sealed record PreparedMessage(
+    IMessage Message,
+    string Context,
+    List<ResolvedMedia> LinkMedia,
+    List<PreparedAttachment> Attachments,
+    List<PreparedReaction> Reactions);
+
 public class DiscordImporter : IDiscordImporter
 {
     static readonly HashSet<string> AudioVideoExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -107,31 +125,88 @@ public class DiscordImporter : IDiscordImporter
 
         int messages = 0, entries = 0;
         var last = (ulong)lastStored;
-        await foreach (var page in channel.GetMessagesAsync(last, Direction.After, int.MaxValue))
-        {
-            foreach (var msg in page.OrderBy(m => m.Id))
-            {
-                if (msg.Id <= last) continue;
-                last = msg.Id;
-                if (msg.Type is not (MessageType.Default or MessageType.Reply)) continue;
 
-                entries += await ProcessMessageAsync(msg, dbChannelId, channel.Name);
-                messages++;
-                if (messages % 50 == 0)
-                    Console.WriteLine($"  #{channel.Name}: {messages} messages, {entries} entries (at {msg.Timestamp:yyyy-MM-dd})");
+        // Walking the channel is cheap; identifying what was posted is not. So the messages stream out in
+        // order here and OrderedPipeline does the identifying many at a time, while still writing in order.
+        async IAsyncEnumerable<IMessage> NewMessagesAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await foreach (var page in channel.GetMessagesAsync(last, Direction.After, int.MaxValue).WithCancellation(ct))
+            {
+                foreach (var msg in page.OrderBy(m => m.Id))
+                {
+                    if (msg.Id <= last) continue;
+                    last = msg.Id;
+                    if (msg.Type is not (MessageType.Default or MessageType.Reply)) continue;
+                    yield return msg;
+                }
             }
         }
+
+        await OrderedPipeline.RunAsync(
+            NewMessagesAsync(),
+            _config.MaxParallelism,
+            (msg, ct) => PrepareMessageAsync(msg, channel.Name, ct),
+            async prepared =>
+            {
+                entries += await WriteMessageAsync(prepared, dbChannelId);
+                messages++;
+                if (messages % 50 == 0)
+                    Console.WriteLine($"  #{channel.Name}: {messages} messages, {entries} entries (at {prepared.Message.Timestamp:yyyy-MM-dd})");
+            });
+
         Console.WriteLine($"#{channel.Name}: imported {messages} messages, {entries} entries");
     }
 
-    /// <summary>Imports one message and everything attached to it in a single transaction. Returns the number of entries added.</summary>
-    async Task<int> ProcessMessageAsync(IMessage msg, Guid channelId, string channelName)
+    /// <summary>
+    /// Everything about a message that needs the network: resolving its links, downloading and identifying its
+    /// attachments and listing who reacted. Touches no database state, so many of these can run at once.
+    /// </summary>
+    async Task<PreparedMessage> PrepareMessageAsync(IMessage msg, string channelName, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        var context = $"#{channelName} message {msg.Id}";
+
+        var attachments = new List<PreparedAttachment>();
+        foreach (var att in msg.Attachments)
+        {
+            var relative = Text.RelativePath("Download", "Attachments", $"{att.Id}-{Text.SanitizeFileName(att.Filename)}");
+            var full = Path.Combine(_repoRoot, relative);
+            if (!await _downloader.TryDownloadAsync(att.Url, full))
+                throw new InvalidOperationException($"Could not download attachment {att.Filename} ({att.Id}) of {context}");
+
+            var media = IsAudioOrVideo(att) ? await _resolver.ResolveFileAsync(full, att.Filename, context) : null;
+            var ext = Path.GetExtension(att.Filename).TrimStart('.').ToLowerInvariant();
+            attachments.Add(new PreparedAttachment(att, relative, ext, media));
+        }
+
+        var reactions = new List<PreparedReaction>();
+        if (msg is IUserMessage userMessage && userMessage.Reactions.Count > 0)
+        {
+            foreach (var emote in userMessage.Reactions.Keys)
+            {
+                var users = new List<IUser>();
+                await foreach (var page in userMessage.GetReactionUsersAsync(emote, 1000).WithCancellation(ct))
+                    users.AddRange(page);
+                reactions.Add(new PreparedReaction(emote, users));
+            }
+        }
+
+        var linkMedia = new List<ResolvedMedia>();
+        foreach (var link in Text.ExtractLinks(msg.Content))
+            linkMedia.AddRange(await _resolver.ResolveLinkAsync(link, context));
+
+        return new PreparedMessage(msg, context, linkMedia, attachments, reactions);
+    }
+
+    /// <summary>Writes one prepared message and everything attached to it in a single transaction. Returns the number of entries added.</summary>
+    async Task<int> WriteMessageAsync(PreparedMessage prepared, Guid channelId)
+    {
+        var msg = prepared.Message;
         using var db = NewDb();
         var discordId = (long)msg.Id;
         if (await db.Messages.AnyAsync(m => m.DiscordId == discordId)) return 0;
 
-        var context = $"#{channelName} message {msg.Id}";
         await using var tx = await db.Database.BeginTransactionAsync();
 
         var author = await _profiles.EnsureAsync(db, msg.Author);
@@ -158,47 +233,39 @@ public class DiscordImporter : IDiscordImporter
         };
         db.Messages.Add(message);
 
-        var attachments = new List<(Attachment Row, IAttachment Source, string FullPath)>();
-        foreach (var att in msg.Attachments)
+        var attachments = new List<(Attachment Row, PreparedAttachment Prepared)>();
+        foreach (var att in prepared.Attachments)
         {
-            var ext = Path.GetExtension(att.Filename).TrimStart('.').ToLowerInvariant();
-            var fileExt = await GetOrCreateExtensionAsync(db, ext);
-
-            var relative = Text.RelativePath("Download", "Attachments", $"{att.Id}-{Text.SanitizeFileName(att.Filename)}");
-            var full = Path.Combine(_repoRoot, relative);
-            if (!await _downloader.TryDownloadAsync(att.Url, full))
-                throw new InvalidOperationException($"Could not download attachment {att.Filename} ({att.Id}) of {context}");
-
+            var fileExt = await GetOrCreateExtensionAsync(db, att.Extension);
             var row = new Attachment
             {
                 Id = Guid.NewGuid(),
-                DiscordId = (long)att.Id,
+                DiscordId = (long)att.Source.Id,
                 MessageId = message.Id,
-                Filename = att.Filename,
+                Filename = att.Source.Filename,
                 FileExtensionId = fileExt.Id,
-                Size = att.Size,
-                Path = relative,
+                Size = att.Source.Size,
+                Path = att.RelativePath,
             };
             db.Attachments.Add(row);
-            attachments.Add((row, att, full));
+            attachments.Add((row, att));
         }
         await db.SaveChangesAsync();
 
-        await AddReactionsAsync(db, msg, message);
+        await AddReactionsAsync(db, prepared, message);
 
         var writer = _writers.Create(db);
         var entryCount = 0;
-        foreach (var link in Text.ExtractLinks(msg.Content))
-            foreach (var media in await _resolver.ResolveLinkAsync(link, context))
-            {
-                await writer.AddEntryAsync(message, media, null, context);
-                entryCount++;
-            }
-
-        foreach (var (row, source, full) in attachments.Where(a => IsAudioOrVideo(a.Source)))
+        foreach (var media in prepared.LinkMedia)
         {
-            var media = await _resolver.ResolveFileAsync(full, source.Filename, context);
-            await writer.AddEntryAsync(message, media, row, context);
+            await writer.AddEntryAsync(message, media, null, prepared.Context);
+            entryCount++;
+        }
+
+        foreach (var (row, att) in attachments)
+        {
+            if (att.Media == null) continue;
+            await writer.AddEntryAsync(message, att.Media, row, prepared.Context);
             entryCount++;
         }
 
@@ -206,21 +273,20 @@ public class DiscordImporter : IDiscordImporter
         return entryCount;
     }
 
-    async Task AddReactionsAsync(SotdDbContext db, IMessage msg, Message message)
+    async Task AddReactionsAsync(SotdDbContext db, PreparedMessage prepared, Message message)
     {
-        if (msg is not IUserMessage userMessage || userMessage.Reactions.Count == 0) return;
+        if (prepared.Reactions.Count == 0) return;
 
         var seen = new HashSet<(Guid Profile, Guid Emoji)>();
-        foreach (var emote in userMessage.Reactions.Keys)
+        foreach (var reaction in prepared.Reactions)
         {
-            var emoji = await _emojis.EnsureAsync(db, emote);
-            await foreach (var page in userMessage.GetReactionUsersAsync(emote, 1000))
-                foreach (var user in page)
-                {
-                    var profile = await _profiles.EnsureAsync(db, user);
-                    if (seen.Add((profile.Id, emoji.Id)))
-                        db.Reactions.Add(new Reaction { MessageId = message.Id, ProfileId = profile.Id, EmojiId = emoji.Id });
-                }
+            var emoji = await _emojis.EnsureAsync(db, reaction.Emote);
+            foreach (var user in reaction.Users)
+            {
+                var profile = await _profiles.EnsureAsync(db, user);
+                if (seen.Add((profile.Id, emoji.Id)))
+                    db.Reactions.Add(new Reaction { MessageId = message.Id, ProfileId = profile.Id, EmojiId = emoji.Id });
+            }
             await db.SaveChangesAsync();
         }
     }
