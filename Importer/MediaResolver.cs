@@ -7,7 +7,7 @@ namespace Sotd.Importer;
 /// Order of preference: the host's own API (Spotify, Apple Music, Deezer), then source metadata plus a scored
 /// Spotify search, then the cleaned raw title and uploader.
 /// </summary>
-public class MediaResolver
+public class MediaResolver : IMediaResolver
 {
     public const string FileUploadSource = "file upload";
 
@@ -20,13 +20,15 @@ public class MediaResolver
     const double GoodEnoughScore = 0.95;
     const int MaxSearchQueries = 6;
 
-    readonly SpotifyClient _spotify;
-    readonly YtDlpClient _ytdlp;
-    readonly PageMetadataClient _page;
-    readonly ITunesClient _itunes;
-    readonly DeezerClient _deezer;
+    readonly ISpotifyClient _spotify;
+    readonly IYtDlpClient _ytdlp;
+    readonly IPageMetadataClient _page;
+    readonly IITunesClient _itunes;
+    readonly IDeezerClient _deezer;
+    readonly ILinkClassifier _classifier;
+    readonly IFileMetadataReader _files;
     readonly HttpClient _http;
-    readonly ReviewLog _log;
+    readonly IReviewLog _log;
 
     /// <summary>
     /// The same link gets posted more than once over five years. Caching keeps the importer from asking the
@@ -34,14 +36,16 @@ public class MediaResolver
     /// </summary>
     readonly Dictionary<string, List<ResolvedMedia>> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public MediaResolver(SpotifyClient spotify, YtDlpClient ytdlp, PageMetadataClient page, ITunesClient itunes,
-        DeezerClient deezer, HttpClient http, ReviewLog log)
+    public MediaResolver(ISpotifyClient spotify, IYtDlpClient ytdlp, IPageMetadataClient page, IITunesClient itunes,
+        IDeezerClient deezer, ILinkClassifier classifier, IFileMetadataReader files, HttpClient http, IReviewLog log)
     {
         _spotify = spotify;
         _ytdlp = ytdlp;
         _page = page;
         _itunes = itunes;
         _deezer = deezer;
+        _classifier = classifier;
+        _files = files;
         _http = http;
         _log = log;
     }
@@ -63,7 +67,7 @@ public class MediaResolver
     {
         try
         {
-            var info = LinkClassifier.Classify(url);
+            var info = _classifier.Classify(url);
             if (info == null)
             {
                 _log.SkippedLink(context, url);
@@ -100,7 +104,7 @@ public class MediaResolver
     /// <summary>Resolves an uploaded audio/video file that has already been downloaded to <paramref name="localPath"/>.</summary>
     public async Task<ResolvedMedia> ResolveFileAsync(string localPath, string filename, string context)
     {
-        var meta = FileMetadataReader.Read(localPath);
+        var meta = _files.Read(localPath);
         var title = meta?.Title ?? Path.GetFileNameWithoutExtension(filename);
         var artists = meta?.Artist != null ? Text.SplitArtistNames(meta.Artist) : new List<string>();
         return await BuildFromRawAsync(
@@ -128,7 +132,7 @@ public class MediaResolver
     {
         using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         var final = resp.RequestMessage?.RequestUri?.ToString();
-        var info = final == null ? null : LinkClassifier.Classify(final);
+        var info = final == null ? null : _classifier.Classify(final);
         if (info == null || info.Kind == LinkKind.ShortLink)
         {
             // A shortener pointing somewhere that is not a music host is just a normal non-music link.
