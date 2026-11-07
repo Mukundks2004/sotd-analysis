@@ -16,7 +16,7 @@ public record YtDlpItem(
     DateTime? Date);
 
 /// <summary>Runs yt-dlp to get metadata for a video/track link or expand a playlist. Never downloads media.</summary>
-public class YtDlpClient
+public class YtDlpClient : IYtDlpClient
 {
     readonly string _path;
 
