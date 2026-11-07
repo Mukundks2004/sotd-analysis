@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Sotd.Backend.Api;
+using Sotd.Backend.Dtos;
+using Sotd.Backend.Services;
 using Sotd.Database;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,35 @@ builder.Services.AddControllers().AddJsonOptions(o =>
     o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Every service is registered against its interface, so a controller only ever sees the contract and the
+// tests can hand it a mock instead.
+builder.Services.AddSingleton<IQueryBuilder, QueryBuilder>();
+builder.Services.AddScoped<IAnnotationService, AnnotationService>();
+builder.Services.AddScoped<IGenreGraphService, GenreGraphService>();
+
+// The table definitions are stateless descriptions, so one of each is enough; the CRUD service around
+// them is scoped because it holds the request's database context.
+AddTable<Person, PersonDto, PersonWrite, PersonTable>();
+AddTable<Profile, ProfileDto, ProfileWrite, ProfileTable>();
+AddTable<Channel, ChannelDto, ChannelWrite, ChannelTable>();
+AddTable<Message, MessageDto, MessageWrite, MessageTable>();
+AddTable<FileExtension, FileExtensionDto, FileExtensionWrite, FileExtensionTable>();
+AddTable<Attachment, AttachmentDto, AttachmentWrite, AttachmentTable>();
+AddTable<Emoji, EmojiDto, EmojiWrite, EmojiTable>();
+AddTable<Song, SongDto, SongWrite, SongTable>();
+AddTable<Genre, GenreDto, GenreWrite, GenreTable>();
+AddTable<Artist, ArtistDto, ArtistWrite, ArtistTable>();
+AddTable<Source, SourceDto, SourceWrite, SourceTable>();
+AddTable<SotdEntry, SotdEntryDto, SotdEntryWrite, SotdEntryTable>();
+
+void AddTable<TEntity, TRead, TWrite, TTable>()
+    where TEntity : class
+    where TTable : class, ITableDefinition<TEntity, TRead, TWrite>
+{
+    builder.Services.AddSingleton<ITableDefinition<TEntity, TRead, TWrite>, TTable>();
+    builder.Services.AddScoped<ICrudService<TEntity, TRead, TWrite>, CrudService<TEntity, TRead, TWrite>>();
+}
 
 // This is a local tool with no authentication, so the dev frontend on its own port just needs to be let in.
 const string DevCors = "frontend";
