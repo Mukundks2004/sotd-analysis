@@ -14,6 +14,7 @@ All input comes from a config file (e.g. `config.json`, gitignored, with a commi
 - Spotify market (ISO country code, default `US`) — every Spotify call is pinned to one market so that track relinking cannot return a different ID for the same recording between runs
 - Path to the `yt-dlp` executable (defaults to `yt-dlp` on the PATH)
 - `MaxParallelism` (default `8`, clamped to 1–32) — how many messages may have their network work in flight at once. See "Parallelism" below.
+- `SpotifyMinIntervalMs` (default `150`, clamped to 0–5000) — smallest gap between two Spotify requests.
 
 The `Download/` folder is also gitignored.
 
