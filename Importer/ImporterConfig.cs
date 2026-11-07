@@ -18,6 +18,14 @@ public class ImporterConfig
     public string SpotifyMarket { get; set; } = "US";
     public string YtDlpPath { get; set; } = "yt-dlp";
 
+    /// <summary>
+    /// How many messages may have their network work (link resolution, yt-dlp, downloads, reaction users)
+    /// in flight at once. The database is still written by a single thread in message order, so this only
+    /// affects how fast the slow part goes. Keep it modest: every unit is a potential yt-dlp process and a
+    /// share of the Spotify rate limit.
+    /// </summary>
+    public int MaxParallelism { get; set; } = 8;
+
     public static ImporterConfig Load(string path)
     {
         var json = File.ReadAllText(path);
@@ -43,6 +51,7 @@ public class ImporterConfig
             throw new InvalidOperationException("Config is missing required values: " + string.Join(", ", missing));
         if (string.IsNullOrWhiteSpace(YtDlpPath)) YtDlpPath = "yt-dlp";
         if (string.IsNullOrWhiteSpace(DatabasePath)) DatabasePath = "sotd.db";
+        MaxParallelism = Math.Clamp(MaxParallelism, 1, 32);
         SpotifyMarket = string.IsNullOrWhiteSpace(SpotifyMarket) ? "US" : SpotifyMarket.Trim().ToUpperInvariant();
     }
 }
