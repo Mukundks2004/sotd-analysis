@@ -130,4 +130,22 @@ public class CatalogWriterTests : DatabaseTestBase
 
         _log.Verify(l => l.NameMatched("ctx", It.IsAny<string>()), Times.AtLeastOnce);
     }
+
+    [Test]
+    public async Task ASecondRunReusesWhatTheFirstRunWroteInsteadOfDuplicatingIt()
+    {
+        // Writer() builds a fresh SongTitleIndex from the database, which is exactly what starting the
+        // importer again does. If the de-duplication only lived in memory, this would write everything twice.
+        var daft = new MediaArtist("Daft Punk", "a1");
+        await Writer().AddEntryAsync(_message, Media("One More Time", "spotify", "t1", daft), null, "ctx");
+
+        await Writer().AddEntryAsync(_message, Media("One More Time", "spotify", "t1", daft), null, "ctx");
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await Db.Songs.CountAsync(), Is.EqualTo(1), "the song should be matched, not re-created");
+            Assert.That(await Db.Artists.CountAsync(), Is.EqualTo(1), "the artist should be matched, not re-created");
+            Assert.That(await Db.Genres.CountAsync(), Is.EqualTo(2), "genres should not accumulate per run");
+        });
+    }
 }
