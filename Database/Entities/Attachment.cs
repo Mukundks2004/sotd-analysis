@@ -11,4 +11,5 @@ public class Attachment
     public FileExtension FileExtension { get; set; } = null!;
     public long Size { get; set; }
     public string Path { get; set; } = "";
+    public AttachmentSong? AttachmentSong { get; set; }
 }
