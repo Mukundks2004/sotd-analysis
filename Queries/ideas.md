@@ -25,6 +25,8 @@ Person who has duplicated the most songs- how many were their own duplicates and
 how many kpop songs
 how many playlists are there? a playlist is multiple entries from teh same message
 
-
 bar chart, how many artists have one song, how many have more, stack them next to each other
 or like a bar chart ordered? and zoomed out. of songs per artist. expect ldr, twice, halsey at top.
+
+- how many edited messages are there?
+- how many sotd have been edited? (remember only counting sotd where it is the first time seeing those songs)
