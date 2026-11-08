@@ -6,8 +6,6 @@ public class Attachment
     public long DiscordId { get; set; }
     public Guid MessageId { get; set; }
     public Message Message { get; set; } = null!;
-    public Guid? SongId { get; set; }
-    public Song? Song { get; set; }
     public string Filename { get; set; } = "";
     public Guid FileExtensionId { get; set; }
     public FileExtension FileExtension { get; set; } = null!;
