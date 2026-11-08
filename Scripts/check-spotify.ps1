@@ -17,38 +17,43 @@
     .\check-spotify.ps1
     .\check-spotify.ps1 -Watch
 #>
+
 [CmdletBinding()]
 param(
     [string]$ConfigPath,
-    # Keep checking every few minutes until the app is being served again.
     [switch]$Watch,
     [int]$IntervalSeconds = 300
 )
 
 $ErrorActionPreference = 'Stop'
 
+# Calculate the value of the variable $ConfigPath used to get configs
 if (-not $ConfigPath) {
-    # $PSScriptRoot is not always populated in the param block, so work it out here instead.
     $root = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $ConfigPath = Join-Path $root 'Importer\config.json'
+    $ConfigPath = Join-Path $root '..\Importer\config.json'
 }
 
+# If config is not found exit early
 if (-not (Test-Path $ConfigPath)) {
     Write-Host "no config at $ConfigPath" -ForegroundColor Red
     exit 2
 }
 
+# Read config and error if we don't have spotify client or spotify client secret
 $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 if (-not $config.SpotifyClientId -or -not $config.SpotifyClientSecret) {
     Write-Host "config.json has no SpotifyClientId / SpotifyClientSecret" -ForegroundColor Red
     exit 2
 }
-$market = if ($config.SpotifyMarket) { $config.SpotifyMarket } else { 'US' }
+
+# Default market to US if it is not in the config
+$market = if ($config.SpotifyMarket) { $config.SpotifyMarket } else { 'AU' }
 
 function Test-Spotify {
-    # The token endpoint has its own separate limit, so a failure here is a credentials problem, not a quota one.
     $pair = "$($config.SpotifyClientId):$($config.SpotifyClientSecret)"
     $basic = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+
+    # Generate token to make request- if this fails it is unrelated to rate limiting
     try {
         $token = Invoke-RestMethod -Method Post -Uri 'https://accounts.spotify.com/api/token' `
             -Headers @{ Authorization = "Basic $basic" } `
@@ -58,6 +63,7 @@ function Test-Spotify {
         return [pscustomobject]@{ State = 'broken'; Detail = "could not get a token: $($_.Exception.Message)" }
     }
 
+    # Make a basic request using the token
     try {
         $null = Invoke-RestMethod -Method Get -Uri "https://api.spotify.com/v1/search?type=track&limit=1&market=$market&q=test" `
             -Headers @{ Authorization = "Bearer $($token.access_token)" }
@@ -65,6 +71,8 @@ function Test-Spotify {
     }
     catch {
         $resp = $_.Exception.Response
+
+        # If this fails with status '429', we are being rate limited: ready the 'Retry-After' header and print the value
         if ($resp -and [int]$resp.StatusCode -eq 429) {
             $retry = $resp.Headers['Retry-After']
             $seconds = 0
@@ -79,8 +87,12 @@ function Test-Spotify {
                     Seconds = $seconds
                 }
             }
+
+            # Case for if we are unable to parse a time limit from the '429' response
             return [pscustomobject]@{ State = 'penalised'; Detail = 'rate limited, no Retry-After given'; Seconds = 0 }
         }
+
+        # Case for if response is not a '429'- we don't expect this to happen
         return [pscustomobject]@{ State = 'broken'; Detail = $_.Exception.Message }
     }
 }
@@ -96,6 +108,8 @@ while ($true) {
         }
         'penalised' {
             Write-Host "$stamp  WAIT - $($result.Detail)" -ForegroundColor Yellow
+
+            # If the watch flag is set, this will not exit- instead it will wait the interval time (default 300) and then try again
             if (-not $Watch) { exit 1 }
         }
         'broken' {
