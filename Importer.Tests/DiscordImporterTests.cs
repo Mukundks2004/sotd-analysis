@@ -1,7 +1,7 @@
+using Database.Entities;
 using Discord;
 using Moq;
 using Sotd.Database;
-using Sotd.Importer;
 
 namespace Importer.Tests;
 

@@ -1,5 +1,5 @@
+using Database.Entities;
 using Sotd.Database;
-using Sotd.Importer;
 
 namespace Importer.Tests;
 

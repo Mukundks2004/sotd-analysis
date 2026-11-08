@@ -1,7 +1,8 @@
-using Database;
+using Database.Entities;
 using Discord;
 using Microsoft.EntityFrameworkCore;
-using Emoji = Sotd.Database.Emoji;
+using Sotd.Database;
+using Emoji = Database.Entities.Emoji;
 
 namespace Importer;
 

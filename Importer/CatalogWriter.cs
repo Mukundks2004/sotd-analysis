@@ -1,5 +1,6 @@
-using Database;
+using Database.Entities;
 using Microsoft.EntityFrameworkCore;
+using Sotd.Database;
 
 namespace Importer;
 
@@ -73,25 +74,45 @@ public class CatalogWriter : ICatalogWriter
         }
 
         var song = await GetOrCreateSongAsync(media, artistIds, context);
-        var source = await GetOrCreateSourceAsync(media.SourceName);
 
         if (media.Quality is not (MatchQuality.SpotifyExact or MatchQuality.ProviderExact))
             _log.NameMatched(context, $"{media.Quality}: {media} {media.Link}");
 
-        var entry = new SotdEntry
+        var entry = new SotdEntry { Id = Guid.NewGuid(), MessageId = message.Id };
+        if (attachment != null)
         {
-            Id = Guid.NewGuid(),
-            SongId = song.Id,
-            MessageId = message.Id,
-            SourceId = source.Id,
-            Link = media.Link,
-            AttachmentId = attachment?.Id,
-            Duration = media.DurationSeconds,
-            ReleaseDate = media.ReleaseDate,
-        };
+            var attachmentSong = new AttachmentSong { AttachmentId = attachment.Id, SongId = song.Id };
+            _db.AttachmentSongs.Add(attachmentSong);
+            entry.AttachmentSongId = attachmentSong.AttachmentId;
+        }
+        else
+        {
+            var link = await GetOrCreateSongLinkAsync(song, media);
+            entry.SongLinkId = link.Id;
+        }
         _db.SotdEntries.Add(entry);
         await _db.SaveChangesAsync();
         return entry;
+    }
+
+    async Task<SongLink> GetOrCreateSongLinkAsync(Song song, ResolvedMedia media)
+    {
+        var url = media.Link ?? throw new InvalidOperationException($"Link media without a url: {media}");
+        var link = await _db.SongLinks.FirstOrDefaultAsync(l => l.Url == url);
+        if (link != null) return link;
+
+        var source = await GetOrCreateLinkSourceAsync(media.SourceName);
+        link = new SongLink
+        {
+            Id = Guid.NewGuid(),
+            Url = url,
+            SongId = song.Id,
+            LinkSourceId = source.Id,
+            Duration = media.DurationSeconds,
+            UploadDate = media.ReleaseDate,
+        };
+        _db.SongLinks.Add(link);
+        return link;
     }
 
     async Task<Guid> GetOrCreateArtistAsync(MediaArtist a, string context)
@@ -217,12 +238,12 @@ public class CatalogWriter : ICatalogWriter
         if (changed) await _db.SaveChangesAsync();
     }
 
-    async Task<Source> GetOrCreateSourceAsync(string name)
+    async Task<LinkSource> GetOrCreateLinkSourceAsync(string name)
     {
-        var source = await _db.Sources.FirstOrDefaultAsync(s => s.Name == name);
+        var source = await _db.LinkSources.FirstOrDefaultAsync(s => s.Name == name);
         if (source != null) return source;
-        source = new Source { Id = Guid.NewGuid(), Name = name };
-        _db.Sources.Add(source);
+        source = new LinkSource { Id = Guid.NewGuid(), Name = name };
+        _db.LinkSources.Add(source);
         await _db.SaveChangesAsync();
         return source;
     }

@@ -1,7 +1,8 @@
-using Database;
+using Database.Entities;
 using Discord;
-using Attachment = Sotd.Database.Attachment;
-using Emoji = Sotd.Database.Emoji;
+using Sotd.Database;
+using Attachment = Database.Entities.Attachment;
+using Emoji = Database.Entities.Emoji;
 
 namespace Importer;
 

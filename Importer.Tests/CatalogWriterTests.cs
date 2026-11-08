@@ -1,7 +1,7 @@
+using Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Sotd.Database;
-using Sotd.Importer;
 
 namespace Importer.Tests;
 
@@ -82,7 +82,7 @@ public class CatalogWriterTests : DatabaseTestBase
         Assert.That(await Db.Songs.CountAsync(), Is.EqualTo(1));
         Assert.That(await Db.Artists.CountAsync(), Is.EqualTo(1));
         Assert.That(await Db.SotdEntries.CountAsync(), Is.EqualTo(2));
-        Assert.That(await Db.Sources.CountAsync(), Is.EqualTo(2));
+        Assert.That(await Db.LinkSources.CountAsync(), Is.EqualTo(2));
         // Genres hang off the artist, not the song, and are only asked for once.
         Assert.That(await Db.ArtistGenres.CountAsync(), Is.EqualTo(2));
         Assert.That(await Db.SongGenres.CountAsync(), Is.EqualTo(0));

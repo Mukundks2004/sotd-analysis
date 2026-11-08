@@ -1,3 +1,4 @@
+using Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Sotd.Database;
 

@@ -1,8 +1,10 @@
-using Database;
+using Database.Entities;
 using Discord;
 using Discord.Rest;
 using Microsoft.EntityFrameworkCore;
-using Attachment = Sotd.Database.Attachment;
+using Sotd.Database;
+using Attachment = Database.Entities.Attachment;
+using Channel = Database.Entities.Channel;
 
 namespace Importer;
 
@@ -107,7 +109,7 @@ public class DiscordImporter : IDiscordImporter
             var row = await db.Channels.FirstOrDefaultAsync(c => c.DiscordId == did);
             if (row == null)
             {
-                row = new Database.Channel { Id = Guid.NewGuid(), DiscordId = did, Name = channel.Name };
+                row = new Channel { Id = Guid.NewGuid(), DiscordId = did, Name = channel.Name };
                 db.Channels.Add(row);
             }
             else
