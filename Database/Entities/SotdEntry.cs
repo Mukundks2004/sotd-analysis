@@ -3,18 +3,8 @@
 public class SotdEntry
 {
     public Guid Id { get; set; }
-    public Guid SongId { get; set; }
-    public Song Song { get; set; } = null!;
     public Guid MessageId { get; set; }
     public Message Message { get; set; } = null!;
-    public Guid SourceId { get; set; }
-    public Source Source { get; set; } = null!;
-    public string? Link { get; set; }
     public Guid? AttachmentId { get; set; }
     public Attachment? Attachment { get; set; }
-    /// <summary>Seconds. 0 means the importer could not find a duration (logged for review).</summary>
-    public int Duration { get; set; }
-    public DateTime? ReleaseDate { get; set; }
-    public string? Path { get; set; }
-    public string? Lyrics { get; set; }
 }
