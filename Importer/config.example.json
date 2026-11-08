@@ -5,7 +5,7 @@
   "ChannelIds": [0],
   "SpotifyClientId": "your spotify client id",
   "SpotifyClientSecret": "your spotify client secret",
-  "SpotifyMarket": "US",
+  "SpotifyMarket": "AU",
   "YtDlpPath": "yt-dlp",
   "MaxParallelism": 8,
   "SpotifyMinIntervalMs": 150
