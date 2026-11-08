@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Database;
-using Sotd.Importer;
 using Importer;
 
 // All input comes from config.json (see config.example.json). No command line arguments.
