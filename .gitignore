@@ -26,3 +26,4 @@ Backend/Backend.csproj.user
 .vs/SotdAnalysis.slnx/config/applicationhost.config
 /.vs/SotdAnalysis.slnx/v18/TestStore/0/068.testlog
 /.vs/SotdAnalysis.slnx/v18/TestStore/0/070.testlog
+*.testlog
