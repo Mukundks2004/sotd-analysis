@@ -1,18 +1,14 @@
+using Database.Converters;
 using Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Sotd.Database;
+namespace Database;
 
-public class SotdDbContext : DbContext
+public class SotdDbContext(DbContextOptions<SotdDbContext> options) : DbContext(options)
 {
-    public SotdDbContext(DbContextOptions<SotdDbContext> options) : base(options) { }
-
-    /// <summary>Builds a context for a sqlite file at <paramref name="path"/>.</summary>
     public static SotdDbContext ForSqliteFile(string path)
     {
-        var options = new DbContextOptionsBuilder<SotdDbContext>()
-            .UseSqlite($"Data Source={path}")
-            .Options;
+        var options = new DbContextOptionsBuilder<SotdDbContext>().UseSqlite($"Data Source={path}").Options;
         return new SotdDbContext(options);
     }
 
@@ -38,7 +34,6 @@ public class SotdDbContext : DbContext
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
-        // All datetimes are UTC. SQLite has no zone info, so force Kind=Utc on the way back out.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
         configurationBuilder.Properties<DateTime?>().HaveConversion<NullableUtcDateTimeConverter>();
     }
@@ -81,9 +76,7 @@ public class SotdDbContext : DbContext
 
         b.Entity<Emoji>(e =>
         {
-            // Unique when set; nulls (default emoji) may repeat.
             e.HasIndex(x => x.DiscordId).IsUnique();
-            // Default (unicode) emoji have no Discord ID; their name (the character) is unique among them.
             e.HasIndex(x => x.Name).IsUnique().HasFilter("\"DiscordId\" IS NULL").HasDatabaseName("IX_Emojis_Name_Default");
         });
 
@@ -129,8 +122,7 @@ public class SotdDbContext : DbContext
         b.Entity<AttachmentSong>(e =>
         {
             e.HasKey(x => x.AttachmentId);
-            e.HasOne(x => x.Attachment).WithOne(x => x.AttachmentSong)
-                .HasForeignKey<AttachmentSong>(x => x.AttachmentId);
+            e.HasOne(x => x.Attachment).WithOne(x => x.AttachmentSong).HasForeignKey<AttachmentSong>(x => x.AttachmentId);
         });
 
         b.Entity<SotdEntry>(e =>
@@ -138,35 +130,17 @@ public class SotdDbContext : DbContext
             e.HasIndex(x => x.MessageId);
             e.HasIndex(x => x.SongLinkId);
             e.HasIndex(x => x.AttachmentSongId);
-            // Exactly one of link or attachment song.
+
+            // SOTD Entry has song through AttachmentSong or through SongLink (but not both)
             e.ToTable(t => t.HasCheckConstraint(
                 "CK_SotdEntries_ExactlyOneSource",
                 "(\"SongLinkId\" IS NULL) <> (\"AttachmentSongId\" IS NULL)"));
         });
 
-        // No cascade deletes anywhere: a delete that violates a constraint should fail.
-        // Done last so it covers every relationship configured above.
+        // No cascade deletes
         foreach (var fk in b.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
             fk.DeleteBehavior = DeleteBehavior.Restrict;
+        }
     }
-}
-
-internal class UtcDateTimeConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>
-{
-    public UtcDateTimeConverter() : base(
-        v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
-        v => DateTime.SpecifyKind(v, DateTimeKind.Utc)) { }
-}
-
-internal class NullableUtcDateTimeConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>
-{
-    public NullableUtcDateTimeConverter() : base(
-        v => v == null ? null : (v.Value.Kind == DateTimeKind.Utc ? v : v.Value.ToUniversalTime()),
-        v => v == null ? null : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)) { }
-}
-
-/// <summary>Used only by `dotnet ef` at design time.</summary>
-internal class DesignTimeFactory : Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<SotdDbContext>
-{
-    public SotdDbContext CreateDbContext(string[] args) => SotdDbContext.ForSqliteFile("design-time.db");
 }
