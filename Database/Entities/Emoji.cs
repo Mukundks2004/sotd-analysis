@@ -7,4 +7,5 @@ public class Emoji
     public long? DiscordId { get; set; }
     public bool IsAnimated { get; set; }
     public string? Path { get; set; }
+    public ICollection<Reaction> Reactions { get; set; } = [];
 }
