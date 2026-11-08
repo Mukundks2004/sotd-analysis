@@ -96,7 +96,9 @@ The primary key is the composite (Message, Profile, Emoji).
 
 - ID (UUID)
 - Title (string) (not unique, multiple songs with same name)
-- Spotify ID (string, unique) nullable- the Spotify track ID, used to match the same song across posts and sources. We track the spotify ID as opposed to youtube or apple music because it exposes an API. So this is more of a practical cache.
+- Spotify ID (string, unique) nullable- the Spotify track ID, used to match the same song across posts and sources. We track the spotify ID as opposed to youtube or apple music because it exposes an API. So this is more of a practical cache than anything structurally important.
+- Apple ID for the same reason as above
+- Youtube ID for the same reason as above
 - ISRC (string, unique) nullable- the International Standard Recording Code. The same recording carries the same ISRC on Spotify, Apple Music and Deezer, so this is the most reliable way to tell that a link from one source is the same song as a link from another. Matched on before the Spotify ID, because one recording can have several Spotify IDs (different markets or album releases).
 
 ## Genre [Big] Order By Name Alphabetical
@@ -116,11 +118,13 @@ The primary key is the composite (Message, Profile, Emoji).
 
 ## Artist [Big] Order By Name Alphabetical
 
-> An artist is a person who made or helped make the song
+> An artist is a person who made or helped make the song. Note there are fields here for spotify, apple, youtube. These are just practical fields. Not needed for other song sources.
 
 - ID (UUID)
 - Name (not necessarily unique, artists can have the same stage name) (string)
-- Spotify ID (string, unique) nullable- the Spotify artist ID, used to tell apart artists with the same name
+- Spotify ID (string, unique) nullable- the Spotify artist ID. It is a practical cache to do queries by artist, primarily to find genre. It is null if the song was not found on spotify.
+- Apple ID (string, unique) nullable, same as above but for apple.
+- YouTube channel ID (string, unique) nullable, same as above but for youtube
 
 ## Join Entity Between Song and Artist
 
