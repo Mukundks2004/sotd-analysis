@@ -2,11 +2,13 @@
 
 This is a human readable schema of the database. All columns are not nullable unless otherwise specified.
 
-The database is SQLite, accessed through EF Core. The schema in a C# class library in this folder (entities, `DbContext` and migrations), which the Importer (and later the Backend) reference. `schema.sql` is also kept here.
+The database is SQLite, accessed through EF Core. The schema is in a C# folder, `Entities`. The Importer and Backend reference this. `schema.sql` is also kept here.
 
-For each table I've noted if there are a small, finite number of rows (e.g., there are only so many people around 10 that have contributed to SOTD) or a growing number of rows (e.g., `Message` table grows every day)
+For each table I've noted if there are a small, finite number of rows (e.g., there are only so many `Person`s, around 10, that have contributed to SOTD) or a growing number of rows (e.g., `Message` table grows every day)
 
 There should be no on delete cascade- if deletes fail due to a constraint, that is good.
+
+For every relation e.g., `Person` to `PersonProfile` or `PersonProfile` to `Profile` or `Channel` to `Message` or `Message` to `Channel`, there should be properties on either entity to allow navigation forwards and reverse.
 
 ## Conventions
 
@@ -68,18 +70,6 @@ There should be no on delete cascade- if deletes fail due to a constraint, that 
 - ID (UUID)
 - Name (string, unique)
 
-## Attachment [Big] Order By Filename Alphabetical
-
-> Sometimes messages have attached files
-
-- ID (UUID)
-- Discord ID (snowflake, unique)
-- Message (Foreign key reference to `Message`)
-- Filename (this includes the file extension) (string)
-- File Extension (Foreign key reference to `File Extension`)
-- Size (in bytes) (int)
-- Path to file (string)
-
 ## Emoji [Small] Order By Name Alphabetical
 
 > For normalisation for the `Reaction` table. Includes both custom server emoji and default (unicode) emoji.
@@ -102,11 +92,11 @@ The primary key is the composite (Message, Profile, Emoji).
 
 ## Song [Big] Order By Title Alphabetical
 
-> A song is an entity because sometimes the same song is posted multiple times
+> A song is a title and a collection of artists that have sung it. E.g. "Blinding lights" by the weeknd. Each upload at a different side is a separate "link" (see `Link` below) and each time this is pasted into sotd is a different sotd entry, but all point to the same row in the `Song` table.
 
 - ID (UUID)
 - Title (string) (not unique, multiple songs with same name)
-- Spotify ID (string, unique) nullable- the Spotify track ID, used to match the same song across posts and sources
+- Spotify ID (string, unique) nullable- the Spotify track ID, used to match the same song across posts and sources. We track the spotify ID as opposed to youtube or apple music because it exposes an API. So this is more of a practical cache.
 - ISRC (string, unique) nullable- the International Standard Recording Code. The same recording carries the same ISRC on Spotify, Apple Music and Deezer, so this is the most reliable way to tell that a link from one source is the same song as a link from another. Matched on before the Spotify ID, because one recording can have several Spotify IDs (different markets or album releases).
 
 ## Genre [Big] Order By Name Alphabetical
@@ -147,22 +137,50 @@ The primary key is the composite (Message, Profile, Emoji).
 - Artist (Foreign key reference to `Artist`)
 - Genre (Foreign key reference to `Genre`)
 
-## Source [Small] Order By Name Alphabetical
+## Link Source [Small] Order By Name Alphabetical
 
-> This is for where a song can come from, since there are finitely many values. Examples are youtube, spotify, soundcloud, apple music, shazam, bandcamp, vimeo, file upload, other
+> This is for where a link can point to, since there are finitely many values. Examples are youtube, youtube music, youtube shorts, tiktok, spotify, soundcloud, apple music, shazam, bandcamp, vimeo, other
 
 - ID (UUID)
 - Name (string, unique)
 
-## SOTD Entry [Big] Order By Message 'Sent At' Time Newest First
+## Attachment [Big] Order By Filename Alphabetical
 
-> This is the main thing we are interested in- one song posted by a person on a day. We are not storing 'day' as a column because we can find that information through the message
+> Sometimes messages have attached files
 
 - ID (UUID)
-- Song (Foreign key reference to `Song`)
+- Discord ID (snowflake, unique)
 - Message (Foreign key reference to `Message`)
-- Source (Foreign key reference to `Source`)
-- Link (string) nullable because if the source type is file upload there is no link
-- Attachment (Foreign key reference to `Attachment`) nullable because not every sotd is an attachment. Even though you can find the attachment by going to the message, if there are multiple attachments, you get the same song, same message, same source, but different attachments.
-- Duration (seconds) this is on this table and not the song table because a song might have different durations depending on the source. This is the duration of the linked media (youtube, spotify, or the file). If the importer cannot find a duration it stores `0` and logs the entry for review.
-- Release Date (datetime) nullable, same table placement as above for the same reason. Null when the source does not provide one.
+- Filename (this includes the file extension) (string)
+- File Extension (Foreign key reference to `File Extension`)
+- Size (in bytes) (int)
+- Path to file (string)
+
+## Attachment Song [Big] Order by Attachment Filename Alphabetical
+
+> An attachment can be a song on its own but only if it is video/audio. So for every attachment that is a song, when we process the attachment we also either create a song for it or attach it to an existing song if the name matches. This table is used so every `SOTD Entry` has a `Song`, either through `Attachment` or through `Song Link`.
+
+- Song (Foreign key reference to `Song`)
+- Attachment (Foreign key reference to `Attachment`) (unique and PK)
+
+## Song Link [Big] Order By Url Alphabetical
+
+> A song link is the most important attribute of a sotd entry and points to a song. Multiple links point to the same song. Thank Andrew Ta for making these edge cases. E.g. Blinding Lights music video, lyric video, original audio, apple music link, all have same song but different links. It is called song link because links to photos and other media are not counted as links. Any audio links are.
+
+- ID (UUID)
+- Url (string) (unique)
+- Song (Foreign key reference to `Song`)
+- Source (Foreign key reference to `Link Source`)
+- Duration (seconds) (int). This is the duration of the linked media (youtube, spotify, or the file). If the importer cannot find a duration it stores `0` and logs the entry for review. It is on the link and not the song because music video duration is different to spotify song duration
+- Upload date (spotify release date, youtube upload date), nullable if info not available.
+- Path (text, nullable) for if the song if downloaded- note that right now this is null, we will develop another tool to download all the music later
+- Lyrics (text, nullable), again we will develop the tool for this later
+
+## SOTD Entry [Big] Order By Message 'Sent At' Time Newest First
+
+> This is the main thing we are interested in- one song posted by a person on a day. We are not storing 'day' as a column because we can find that information through the message (although it has to be translated from UTC to AEST/AEDT). Every SOTD is either a song link (that necessarily has a song) or a file upload (that might or might not be a song). There has to be a song through either the link or the file upload. So a check constraint is needed.
+
+- ID (UUID)
+- Message (Foreign key reference to `Message`)
+- Song Link (Foreign key reference to `Song Link`) nullable because if the source type is file upload there is no link
+- Attachment Song (Foreign key reference to `Attachment Song`) nullable because not every sotd is an attachment. Even though you can find the attachment by going to the message, if there are multiple attachments, you get the same song, same message, same source, but different attachments. This way you go through attachment song -> attachment to get the file.
