@@ -1,3 +1,3 @@
 # TODO
 
-No pending TODOs!
+Clean up gitignore
