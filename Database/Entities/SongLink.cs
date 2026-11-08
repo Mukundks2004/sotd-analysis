@@ -6,8 +6,8 @@ public class SongLink
     public string Url { get; set; } = null!;
     public Guid SongId { get; set; }
     public Song Song { get; set; } = null!;
-    public Guid SongSourceId { get; set; }
-    public SongSource SongSource { get; set; } = null!;
+    public Guid LinkSourceId { get; set; }
+    public LinkSource LinkSource { get; set; } = null!;
     public int Duration { get; set; }
     public DateTime? UploadDate { get; set; }
     public string? Path { get; set; }
