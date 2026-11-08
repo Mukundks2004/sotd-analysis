@@ -1,9 +1,9 @@
+using Database;
 using Discord;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Database;
 using Emoji = Sotd.Database.Emoji;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>Creates profiles on first sight and refreshes username, membership and picture once per run.</summary>
 public class ProfileSync : IProfileSync

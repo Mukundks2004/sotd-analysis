@@ -1,10 +1,10 @@
+using Backend.Dtos;
+using Backend.Services;
+using Database;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Sotd.Backend.Api;
-using Sotd.Backend.Dtos;
-using Sotd.Backend.Services;
-using Sotd.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 

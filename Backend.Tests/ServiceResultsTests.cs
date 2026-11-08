@@ -1,8 +1,8 @@
+using Backend.Api;
+using Backend.Dtos;
+using Backend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Api;
-using Sotd.Backend.Dtos;
-using Sotd.Backend.Services;
 
 namespace Backend.Tests;
 

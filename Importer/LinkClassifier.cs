@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Web;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 public enum LinkKind
 {

@@ -1,9 +1,9 @@
 using System.Linq.Expressions;
+using Backend.Api;
+using Database;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Backend.Api;
-using Sotd.Database;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>Builds the ordering, filtering and paging that every list endpoint shares.</summary>
 public interface IQueryBuilder

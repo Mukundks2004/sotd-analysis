@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
-namespace Sotd.Backend.Api;
+namespace Backend.Api;
 
 /// <summary>Everything the list endpoints accept, bound from the query string.</summary>
 public class ListQuery

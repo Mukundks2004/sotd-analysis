@@ -1,6 +1,6 @@
+using Database;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Database;
 
 namespace Backend.Tests;
 

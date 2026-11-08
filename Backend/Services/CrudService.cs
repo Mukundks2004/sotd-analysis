@@ -1,10 +1,10 @@
 using System.Linq.Expressions;
+using Backend.Api;
+using Database;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Backend.Api;
-using Sotd.Database;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>
 /// The read/create/update/delete behaviour every non-join table shares. Each table only has to say which

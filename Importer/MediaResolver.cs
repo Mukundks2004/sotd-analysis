@@ -1,6 +1,6 @@
 using System.Web;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>
 /// Turns links and uploaded files into <see cref="ResolvedMedia"/>: title, artists, duration, release date, source.

@@ -1,4 +1,4 @@
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 public record TagDto(Guid Id, string Name);
 

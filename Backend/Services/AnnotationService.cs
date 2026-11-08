@@ -1,9 +1,9 @@
+using Backend.Api;
+using Database;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Backend.Api;
-using Sotd.Database;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>
 /// The three many-to-many relationships the spec allows editing: a song's artists, a song's genres, and a

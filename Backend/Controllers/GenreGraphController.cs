@@ -1,8 +1,8 @@
+using Backend.Api;
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Api;
-using Sotd.Backend.Services;
 
-namespace Sotd.Backend.Controllers;
+namespace Backend.Controllers;
 
 /// <summary>Routes for the force-directed genre hierarchy view.</summary>
 [ApiController]

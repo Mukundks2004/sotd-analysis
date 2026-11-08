@@ -5,7 +5,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>Minimal Spotify Web API client (client-credentials flow; public catalogue data only).</summary>
 public class SpotifyClient : ISpotifyClient

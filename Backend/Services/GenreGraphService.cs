@@ -1,7 +1,7 @@
+using Database;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Database;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>Backs the force-directed genre hierarchy view.</summary>
 public class GenreGraphService : IGenreGraphService

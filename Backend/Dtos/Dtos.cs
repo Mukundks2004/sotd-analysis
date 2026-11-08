@@ -1,4 +1,4 @@
-namespace Sotd.Backend.Dtos;
+namespace Backend.Dtos;
 
 // Read DTOs are flat: one property per real column, so the UI table and the CSV export can be built straight
 // from them. Discord snowflakes go across as strings because they do not survive a JavaScript number.

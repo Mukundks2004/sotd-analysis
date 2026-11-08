@@ -1,9 +1,9 @@
+using Database;
 using Discord;
-using Sotd.Database;
 using Attachment = Sotd.Database.Attachment;
 using Emoji = Sotd.Database.Emoji;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 // Every service the importer is built from sits behind an interface, so each class can be tested on its own
 // with the things it talks to replaced by mocks. The implementations are the only place that touches the

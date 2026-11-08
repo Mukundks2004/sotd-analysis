@@ -1,7 +1,7 @@
 using System.Runtime.ExceptionServices;
 using System.Threading.Channels;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>
 /// Runs the slow half of a job for many items at once while handing the results to the second half strictly

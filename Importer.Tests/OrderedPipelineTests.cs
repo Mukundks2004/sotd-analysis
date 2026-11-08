@@ -1,5 +1,3 @@
-using Sotd.Importer;
-
 namespace Importer.Tests;
 
 /// <summary>

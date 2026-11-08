@@ -1,4 +1,4 @@
-namespace Sotd.Importer;
+namespace Importer;
 
 public record MediaArtist(string Name, string? SpotifyId);
 

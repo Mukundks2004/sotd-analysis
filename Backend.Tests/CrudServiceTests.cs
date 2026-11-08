@@ -1,10 +1,10 @@
 using System.Linq.Expressions;
+using Backend.Api;
+using Backend.Dtos;
+using Backend.Services;
+using Database;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Sotd.Backend.Api;
-using Sotd.Backend.Dtos;
-using Sotd.Backend.Services;
-using Sotd.Database;
 
 namespace Backend.Tests;
 

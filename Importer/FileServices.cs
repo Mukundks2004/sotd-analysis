@@ -1,4 +1,4 @@
-namespace Sotd.Importer;
+namespace Importer;
 
 public record FileMetadata(string? Title, string? Artist, int DurationSeconds);
 

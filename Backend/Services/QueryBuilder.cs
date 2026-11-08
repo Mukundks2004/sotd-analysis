@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
-using Sotd.Backend.Api;
+using Backend.Api;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>
 /// The instance face of the shared query helpers. The expression work itself stays in <see cref="Query"/>

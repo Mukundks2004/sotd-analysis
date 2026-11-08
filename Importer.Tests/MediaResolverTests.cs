@@ -1,5 +1,4 @@
 using Moq;
-using Sotd.Importer;
 
 namespace Importer.Tests;
 

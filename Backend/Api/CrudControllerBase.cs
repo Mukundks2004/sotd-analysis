@@ -1,7 +1,7 @@
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Services;
 
-namespace Sotd.Backend.Api;
+namespace Backend.Api;
 
 /// <summary>
 /// The endpoints every non-join table shares. The controller is only a route table: all of the behaviour

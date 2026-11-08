@@ -1,8 +1,8 @@
+using Backend.Api;
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Api;
-using Sotd.Backend.Services;
 
-namespace Sotd.Backend.Controllers;
+namespace Backend.Controllers;
 
 /// <summary>Routes for the annotation screen. All of its rules live in <see cref="IAnnotationService"/>.</summary>
 [ApiController]

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>Turns SQLite's terse constraint text into something a person can act on.</summary>
 public static class SqliteErrors

@@ -1,10 +1,10 @@
 using System.Linq.Expressions;
+using Backend.Api;
+using Backend.Dtos;
+using Database;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Backend.Api;
-using Sotd.Backend.Dtos;
-using Sotd.Database;
 
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 // One definition per non-join table. The "Small"/"Big" and default-ordering choices come straight from
 // Database/spec.md. Everything else about a table's endpoints lives in CrudService.

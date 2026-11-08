@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 public record PageMetadata(string Title, string? Artist, int? DurationSeconds, DateTime? Date);
 

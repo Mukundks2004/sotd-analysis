@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 public class ImporterConfig
 {

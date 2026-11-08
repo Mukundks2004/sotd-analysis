@@ -1,7 +1,7 @@
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Services;
 
-namespace Sotd.Backend.Api;
+namespace Backend.Api;
 
 /// <summary>The one place a service outcome turns into an HTTP status code.</summary>
 public static class ServiceResults

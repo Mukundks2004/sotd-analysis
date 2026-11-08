@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>
 /// Apple Music metadata via the public iTunes lookup API. Apple Music pages cannot be read by yt-dlp and

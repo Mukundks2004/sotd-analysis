@@ -1,10 +1,10 @@
+using Database;
 using Discord;
 using Discord.Rest;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Database;
 using Attachment = Sotd.Database.Attachment;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>An attachment that has been downloaded and, if it is audio or video, already identified.</summary>
 public sealed record PreparedAttachment(IAttachment Source, string RelativePath, string Extension, ResolvedMedia? Media);

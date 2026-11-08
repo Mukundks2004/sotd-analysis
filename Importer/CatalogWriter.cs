@@ -1,7 +1,7 @@
+using Database;
 using Microsoft.EntityFrameworkCore;
-using Sotd.Database;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>In-memory index of song ids by match-normalized title, so name matching does not scan the Song table.</summary>
 public class SongTitleIndex : ISongTitleIndex

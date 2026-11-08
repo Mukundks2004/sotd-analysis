@@ -1,4 +1,4 @@
-namespace Sotd.Importer;
+namespace Importer;
 
 /// <summary>Plain-text review logs under Logs/ (gitignored) for things the user should check by hand.</summary>
 public class ReviewLog : IReviewLog

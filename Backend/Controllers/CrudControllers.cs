@@ -1,10 +1,10 @@
+using Backend.Api;
+using Backend.Dtos;
+using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Sotd.Backend.Api;
-using Sotd.Backend.Dtos;
-using Sotd.Backend.Services;
 using Sotd.Database;
 
-namespace Sotd.Backend.Controllers;
+namespace Backend.Controllers;
 
 // One controller per non-join table. Each is just a route and a service: what makes the tables differ
 // lives in the matching ITableDefinition, and the shared behaviour in CrudService.

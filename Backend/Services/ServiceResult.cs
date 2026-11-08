@@ -1,4 +1,4 @@
-namespace Sotd.Backend.Services;
+namespace Backend.Services;
 
 /// <summary>How a service call ended. Deliberately free of ASP.NET types so services can be tested on their own.</summary>
 public enum ResultStatus

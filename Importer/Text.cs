@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 public static class Text
 {

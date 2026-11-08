@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace Sotd.Importer;
+namespace Importer;
 
 public record YtDlpItem(
     string? Url,
