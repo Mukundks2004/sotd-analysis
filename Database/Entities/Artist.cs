@@ -7,6 +7,6 @@ public class Artist
     public string? SpotifyId { get; set; }
     public string? AppleId { get; set; }
     public string? YoutubeChannelId { get; set; }
-    public ICollection<SongArtist> SongArtists { get; set; } = new List<SongArtist>();
-    public ICollection<ArtistGenre> ArtistGenres { get; set; } = new List<ArtistGenre>();
+    public ICollection<SongArtist> SongArtists { get; set; } = [];
+    public ICollection<ArtistGenre> ArtistGenres { get; set; } = [];
 }
