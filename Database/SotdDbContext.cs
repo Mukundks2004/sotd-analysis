@@ -1,3 +1,4 @@
+using Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Sotd.Database;
@@ -30,7 +31,9 @@ public class SotdDbContext : DbContext
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<SongArtist> SongArtists => Set<SongArtist>();
     public DbSet<ArtistGenre> ArtistGenres => Set<ArtistGenre>();
-    public DbSet<Source> Sources => Set<Source>();
+    public DbSet<LinkSource> LinkSources => Set<LinkSource>();
+    public DbSet<SongLink> SongLinks => Set<SongLink>();
+    public DbSet<AttachmentSong> AttachmentSongs => Set<AttachmentSong>();
     public DbSet<SotdEntry> SotdEntries => Set<SotdEntry>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -42,10 +45,6 @@ public class SotdDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        // No cascade deletes anywhere: a delete that violates a constraint should fail.
-        foreach (var fk in b.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
-            fk.DeleteBehavior = DeleteBehavior.Restrict;
-
         b.Entity<Person>().HasKey(x => x.Id);
 
         b.Entity<Profile>(e =>
@@ -69,7 +68,7 @@ public class SotdDbContext : DbContext
         {
             e.HasIndex(x => x.DiscordId).IsUnique();
             e.HasIndex(x => x.PostedAt);
-            e.HasOne(x => x.Reply).WithMany().HasForeignKey(x => x.ReplyId);
+            e.HasOne(x => x.Reply).WithMany(x => x.Replies).HasForeignKey(x => x.ReplyId);
         });
 
         b.Entity<FileExtension>(e => e.HasIndex(x => x.Name).IsUnique());
@@ -84,7 +83,6 @@ public class SotdDbContext : DbContext
         {
             // Unique when set; nulls (default emoji) may repeat.
             e.HasIndex(x => x.DiscordId).IsUnique();
-            e.HasIndex(x => x.Name);
             // Default (unicode) emoji have no Discord ID; their name (the character) is unique among them.
             e.HasIndex(x => x.Name).IsUnique().HasFilter("\"DiscordId\" IS NULL").HasDatabaseName("IX_Emojis_Name_Default");
         });
@@ -94,6 +92,8 @@ public class SotdDbContext : DbContext
         b.Entity<Song>(e =>
         {
             e.HasIndex(x => x.SpotifyId).IsUnique();
+            e.HasIndex(x => x.AppleId).IsUnique();
+            e.HasIndex(x => x.YoutubeId).IsUnique();
             e.HasIndex(x => x.Isrc).IsUnique();
             e.HasIndex(x => x.Title);
         });
@@ -101,7 +101,7 @@ public class SotdDbContext : DbContext
         b.Entity<Genre>(e =>
         {
             e.HasIndex(x => x.Name).IsUnique();
-            e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentId);
+            e.HasOne(x => x.Parent).WithMany(x => x.Children).HasForeignKey(x => x.ParentId);
         });
 
         b.Entity<SongGenre>(e => e.HasKey(x => new { x.SongId, x.GenreId }));
@@ -109,6 +109,8 @@ public class SotdDbContext : DbContext
         b.Entity<Artist>(e =>
         {
             e.HasIndex(x => x.SpotifyId).IsUnique();
+            e.HasIndex(x => x.AppleId).IsUnique();
+            e.HasIndex(x => x.YoutubeChannelId).IsUnique();
             e.HasIndex(x => x.Name);
         });
 
@@ -120,13 +122,32 @@ public class SotdDbContext : DbContext
 
         b.Entity<ArtistGenre>(e => e.HasKey(x => new { x.ArtistId, x.GenreId }));
 
-        b.Entity<Source>(e => e.HasIndex(x => x.Name).IsUnique());
+        b.Entity<LinkSource>(e => e.HasIndex(x => x.Name).IsUnique());
+
+        b.Entity<SongLink>(e => e.HasIndex(x => x.Url).IsUnique());
+
+        b.Entity<AttachmentSong>(e =>
+        {
+            e.HasKey(x => x.AttachmentId);
+            e.HasOne(x => x.Attachment).WithOne(x => x.AttachmentSong)
+                .HasForeignKey<AttachmentSong>(x => x.AttachmentId);
+        });
 
         b.Entity<SotdEntry>(e =>
         {
             e.HasIndex(x => x.MessageId);
-            e.HasIndex(x => x.SongId);
+            e.HasIndex(x => x.SongLinkId);
+            e.HasIndex(x => x.AttachmentSongId);
+            // Exactly one of link or attachment song.
+            e.ToTable(t => t.HasCheckConstraint(
+                "CK_SotdEntries_ExactlyOneSource",
+                "(\"SongLinkId\" IS NULL) <> (\"AttachmentSongId\" IS NULL)"));
         });
+
+        // No cascade deletes anywhere: a delete that violates a constraint should fail.
+        // Done last so it covers every relationship configured above.
+        foreach (var fk in b.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+            fk.DeleteBehavior = DeleteBehavior.Restrict;
     }
 }
 
