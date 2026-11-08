@@ -8,4 +8,8 @@ public class Song
     public string? AppleId { get; set; }
     public string? YoutubeId { get; set; }
     public string? Isrc { get; set; }
+    public ICollection<SongLink> SongLinks { get; set; } = [];
+    public ICollection<SongArtist> SongArtists { get; set; } = [];
+    public ICollection<SongGenre> SongGenres { get; set; } = [];
+    public ICollection<AttachmentSong> AttachmentSongs { get; set; } = [];
 }

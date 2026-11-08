@@ -13,4 +13,8 @@ public class Message
     public string Content { get; set; } = "";
     public Guid? ReplyId { get; set; }
     public Message? Reply { get; set; }
+    public ICollection<Message> Replies { get; set; } = [];
+    public ICollection<Attachment> Attachments { get; set; } = [];
+    public ICollection<Reaction> Reactions { get; set; } = [];
+    public ICollection<SotdEntry> SotdEntries { get; set; } = [];
 }

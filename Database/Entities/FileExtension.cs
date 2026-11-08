@@ -4,4 +4,5 @@ public class FileExtension
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = "";
+    public ICollection<Attachment> Attachments { get; set; } = [];
 }
