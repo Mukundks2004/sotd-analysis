@@ -17,10 +17,13 @@ namespace Database.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.33");
 
-            modelBuilder.Entity("Sotd.Database.Artist", b =>
+            modelBuilder.Entity("Database.Entities.Artist", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppleId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -30,17 +33,26 @@ namespace Database.Migrations
                     b.Property<string>("SpotifyId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("YoutubeChannelId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("AppleId")
+                        .IsUnique();
 
                     b.HasIndex("Name");
 
                     b.HasIndex("SpotifyId")
                         .IsUnique();
 
+                    b.HasIndex("YoutubeChannelId")
+                        .IsUnique();
+
                     b.ToTable("Artists");
                 });
 
-            modelBuilder.Entity("Sotd.Database.ArtistGenre", b =>
+            modelBuilder.Entity("Database.Entities.ArtistGenre", b =>
                 {
                     b.Property<Guid>("ArtistId")
                         .HasColumnType("TEXT");
@@ -55,7 +67,7 @@ namespace Database.Migrations
                     b.ToTable("ArtistGenres");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Attachment", b =>
+            modelBuilder.Entity("Database.Entities.Attachment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -95,7 +107,22 @@ namespace Database.Migrations
                     b.ToTable("Attachments");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Channel", b =>
+            modelBuilder.Entity("Database.Entities.AttachmentSong", b =>
+                {
+                    b.Property<Guid>("AttachmentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SongId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AttachmentId");
+
+                    b.HasIndex("SongId");
+
+                    b.ToTable("AttachmentSongs");
+                });
+
+            modelBuilder.Entity("Database.Entities.Channel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -118,7 +145,7 @@ namespace Database.Migrations
                     b.ToTable("Channels");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Emoji", b =>
+            modelBuilder.Entity("Database.Entities.Emoji", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -150,7 +177,7 @@ namespace Database.Migrations
                     b.ToTable("Emojis");
                 });
 
-            modelBuilder.Entity("Sotd.Database.FileExtension", b =>
+            modelBuilder.Entity("Database.Entities.FileExtension", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -168,7 +195,7 @@ namespace Database.Migrations
                     b.ToTable("FileExtensions");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Genre", b =>
+            modelBuilder.Entity("Database.Entities.Genre", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -191,7 +218,25 @@ namespace Database.Migrations
                     b.ToTable("Genres");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Message", b =>
+            modelBuilder.Entity("Database.Entities.LinkSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("LinkSources");
+                });
+
+            modelBuilder.Entity("Database.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -235,7 +280,7 @@ namespace Database.Migrations
                     b.ToTable("Messages");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Person", b =>
+            modelBuilder.Entity("Database.Entities.Person", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -250,7 +295,7 @@ namespace Database.Migrations
                     b.ToTable("People");
                 });
 
-            modelBuilder.Entity("Sotd.Database.PersonProfile", b =>
+            modelBuilder.Entity("Database.Entities.PersonProfile", b =>
                 {
                     b.Property<Guid>("PersonId")
                         .HasColumnType("TEXT");
@@ -265,7 +310,7 @@ namespace Database.Migrations
                     b.ToTable("PersonProfiles");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Profile", b =>
+            modelBuilder.Entity("Database.Entities.Profile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -295,7 +340,7 @@ namespace Database.Migrations
                     b.ToTable("Profiles");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Reaction", b =>
+            modelBuilder.Entity("Database.Entities.Reaction", b =>
                 {
                     b.Property<Guid>("MessageId")
                         .HasColumnType("TEXT");
@@ -315,10 +360,13 @@ namespace Database.Migrations
                     b.ToTable("Reactions");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Song", b =>
+            modelBuilder.Entity("Database.Entities.Song", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppleId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Isrc")
@@ -331,7 +379,13 @@ namespace Database.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("YoutubeId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("AppleId")
+                        .IsUnique();
 
                     b.HasIndex("Isrc")
                         .IsUnique();
@@ -341,10 +395,13 @@ namespace Database.Migrations
 
                     b.HasIndex("Title");
 
+                    b.HasIndex("YoutubeId")
+                        .IsUnique();
+
                     b.ToTable("Songs");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SongArtist", b =>
+            modelBuilder.Entity("Database.Entities.SongArtist", b =>
                 {
                     b.Property<Guid>("SongId")
                         .HasColumnType("TEXT");
@@ -364,7 +421,7 @@ namespace Database.Migrations
                     b.ToTable("SongArtists");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SongGenre", b =>
+            modelBuilder.Entity("Database.Entities.SongGenre", b =>
                 {
                     b.Property<Guid>("SongId")
                         .HasColumnType("TEXT");
@@ -379,74 +436,85 @@ namespace Database.Migrations
                     b.ToTable("SongGenres");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SotdEntry", b =>
+            modelBuilder.Entity("Database.Entities.SongLink", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("AttachmentId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Duration")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Link")
+                    b.Property<Guid>("LinkSourceId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("MessageId")
+                    b.Property<string>("Lyrics")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("ReleaseDate")
+                    b.Property<string>("Path")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("SongId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("SourceId")
+                    b.Property<DateTime?>("UploadDate")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttachmentId");
-
-                    b.HasIndex("MessageId");
-
-                    b.HasIndex("SongId");
-
-                    b.HasIndex("SourceId");
-
-                    b.ToTable("SotdEntries");
-                });
-
-            modelBuilder.Entity("Sotd.Database.Source", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
+                    b.Property<string>("Url")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("LinkSourceId");
+
+                    b.HasIndex("SongId");
+
+                    b.HasIndex("Url")
                         .IsUnique();
 
-                    b.ToTable("Sources");
+                    b.ToTable("SongLinks");
                 });
 
-            modelBuilder.Entity("Sotd.Database.ArtistGenre", b =>
+            modelBuilder.Entity("Database.Entities.SotdEntry", b =>
                 {
-                    b.HasOne("Sotd.Database.Artist", "Artist")
-                        .WithMany()
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AttachmentSongId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SongLinkId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttachmentSongId");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("SongLinkId");
+
+                    b.ToTable("SotdEntries", t =>
+                        {
+                            t.HasCheckConstraint("CK_SotdEntries_ExactlyOneSource", "(\"SongLinkId\" IS NULL) <> (\"AttachmentSongId\" IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Database.Entities.ArtistGenre", b =>
+                {
+                    b.HasOne("Database.Entities.Artist", "Artist")
+                        .WithMany("ArtistGenres")
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Genre", "Genre")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Genre", "Genre")
+                        .WithMany("ArtistGenres")
                         .HasForeignKey("GenreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -456,16 +524,16 @@ namespace Database.Migrations
                     b.Navigation("Genre");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Attachment", b =>
+            modelBuilder.Entity("Database.Entities.Attachment", b =>
                 {
-                    b.HasOne("Sotd.Database.FileExtension", "FileExtension")
-                        .WithMany()
+                    b.HasOne("Database.Entities.FileExtension", "FileExtension")
+                        .WithMany("Attachments")
                         .HasForeignKey("FileExtensionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Message", "Message")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Message", "Message")
+                        .WithMany("Attachments")
                         .HasForeignKey("MessageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -475,32 +543,51 @@ namespace Database.Migrations
                     b.Navigation("Message");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Genre", b =>
+            modelBuilder.Entity("Database.Entities.AttachmentSong", b =>
                 {
-                    b.HasOne("Sotd.Database.Genre", "Parent")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Attachment", "Attachment")
+                        .WithOne("AttachmentSong")
+                        .HasForeignKey("Database.Entities.AttachmentSong", "AttachmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Database.Entities.Song", "Song")
+                        .WithMany("AttachmentSongs")
+                        .HasForeignKey("SongId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Attachment");
+
+                    b.Navigation("Song");
+                });
+
+            modelBuilder.Entity("Database.Entities.Genre", b =>
+                {
+                    b.HasOne("Database.Entities.Genre", "Parent")
+                        .WithMany("Children")
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Message", b =>
+            modelBuilder.Entity("Database.Entities.Message", b =>
                 {
-                    b.HasOne("Sotd.Database.Channel", "Channel")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Channel", "Channel")
+                        .WithMany("Messages")
                         .HasForeignKey("ChannelId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Profile", "PostedBy")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Profile", "PostedBy")
+                        .WithMany("Messages")
                         .HasForeignKey("PostedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Message", "Reply")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Message", "Reply")
+                        .WithMany("Replies")
                         .HasForeignKey("ReplyId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -511,16 +598,16 @@ namespace Database.Migrations
                     b.Navigation("Reply");
                 });
 
-            modelBuilder.Entity("Sotd.Database.PersonProfile", b =>
+            modelBuilder.Entity("Database.Entities.PersonProfile", b =>
                 {
-                    b.HasOne("Sotd.Database.Person", "Person")
+                    b.HasOne("Database.Entities.Person", "Person")
                         .WithMany("PersonProfiles")
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Profile", "Profile")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Profile", "Profile")
+                        .WithMany("PersonProfiles")
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -530,22 +617,22 @@ namespace Database.Migrations
                     b.Navigation("Profile");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Reaction", b =>
+            modelBuilder.Entity("Database.Entities.Reaction", b =>
                 {
-                    b.HasOne("Sotd.Database.Emoji", "Emoji")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Emoji", "Emoji")
+                        .WithMany("Reactions")
                         .HasForeignKey("EmojiId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Message", "Message")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Message", "Message")
+                        .WithMany("Reactions")
                         .HasForeignKey("MessageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Profile", "Profile")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Profile", "Profile")
+                        .WithMany("Reactions")
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -557,15 +644,15 @@ namespace Database.Migrations
                     b.Navigation("Profile");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SongArtist", b =>
+            modelBuilder.Entity("Database.Entities.SongArtist", b =>
                 {
-                    b.HasOne("Sotd.Database.Artist", "Artist")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Artist", "Artist")
+                        .WithMany("SongArtists")
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Song", "Song")
+                    b.HasOne("Database.Entities.Song", "Song")
                         .WithMany("SongArtists")
                         .HasForeignKey("SongId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -576,16 +663,16 @@ namespace Database.Migrations
                     b.Navigation("Song");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SongGenre", b =>
+            modelBuilder.Entity("Database.Entities.SongGenre", b =>
                 {
-                    b.HasOne("Sotd.Database.Genre", "Genre")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Genre", "Genre")
+                        .WithMany("SongGenres")
                         .HasForeignKey("GenreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Song", "Song")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Song", "Song")
+                        .WithMany("SongGenres")
                         .HasForeignKey("SongId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -595,48 +682,135 @@ namespace Database.Migrations
                     b.Navigation("Song");
                 });
 
-            modelBuilder.Entity("Sotd.Database.SotdEntry", b =>
+            modelBuilder.Entity("Database.Entities.SongLink", b =>
                 {
-                    b.HasOne("Sotd.Database.Attachment", "Attachment")
-                        .WithMany()
-                        .HasForeignKey("AttachmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Sotd.Database.Message", "Message")
-                        .WithMany()
-                        .HasForeignKey("MessageId")
+                    b.HasOne("Database.Entities.LinkSource", "LinkSource")
+                        .WithMany("SongLinks")
+                        .HasForeignKey("LinkSourceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Song", "Song")
-                        .WithMany()
+                    b.HasOne("Database.Entities.Song", "Song")
+                        .WithMany("SongLinks")
                         .HasForeignKey("SongId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sotd.Database.Source", "Source")
-                        .WithMany()
-                        .HasForeignKey("SourceId")
+                    b.Navigation("LinkSource");
+
+                    b.Navigation("Song");
+                });
+
+            modelBuilder.Entity("Database.Entities.SotdEntry", b =>
+                {
+                    b.HasOne("Database.Entities.AttachmentSong", "AttachmentSong")
+                        .WithMany("SotdEntries")
+                        .HasForeignKey("AttachmentSongId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Database.Entities.Message", "Message")
+                        .WithMany("SotdEntries")
+                        .HasForeignKey("MessageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Attachment");
+                    b.HasOne("Database.Entities.SongLink", "SongLink")
+                        .WithMany("SotdEntries")
+                        .HasForeignKey("SongLinkId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AttachmentSong");
 
                     b.Navigation("Message");
 
-                    b.Navigation("Song");
-
-                    b.Navigation("Source");
+                    b.Navigation("SongLink");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Person", b =>
+            modelBuilder.Entity("Database.Entities.Artist", b =>
+                {
+                    b.Navigation("ArtistGenres");
+
+                    b.Navigation("SongArtists");
+                });
+
+            modelBuilder.Entity("Database.Entities.Attachment", b =>
+                {
+                    b.Navigation("AttachmentSong");
+                });
+
+            modelBuilder.Entity("Database.Entities.AttachmentSong", b =>
+                {
+                    b.Navigation("SotdEntries");
+                });
+
+            modelBuilder.Entity("Database.Entities.Channel", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Database.Entities.Emoji", b =>
+                {
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("Database.Entities.FileExtension", b =>
+                {
+                    b.Navigation("Attachments");
+                });
+
+            modelBuilder.Entity("Database.Entities.Genre", b =>
+                {
+                    b.Navigation("ArtistGenres");
+
+                    b.Navigation("Children");
+
+                    b.Navigation("SongGenres");
+                });
+
+            modelBuilder.Entity("Database.Entities.LinkSource", b =>
+                {
+                    b.Navigation("SongLinks");
+                });
+
+            modelBuilder.Entity("Database.Entities.Message", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Reactions");
+
+                    b.Navigation("Replies");
+
+                    b.Navigation("SotdEntries");
+                });
+
+            modelBuilder.Entity("Database.Entities.Person", b =>
                 {
                     b.Navigation("PersonProfiles");
                 });
 
-            modelBuilder.Entity("Sotd.Database.Song", b =>
+            modelBuilder.Entity("Database.Entities.Profile", b =>
                 {
+                    b.Navigation("Messages");
+
+                    b.Navigation("PersonProfiles");
+
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("Database.Entities.Song", b =>
+                {
+                    b.Navigation("AttachmentSongs");
+
                     b.Navigation("SongArtists");
+
+                    b.Navigation("SongGenres");
+
+                    b.Navigation("SongLinks");
+                });
+
+            modelBuilder.Entity("Database.Entities.SongLink", b =>
+                {
+                    b.Navigation("SotdEntries");
                 });
 #pragma warning restore 612, 618
         }
