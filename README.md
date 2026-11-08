@@ -11,11 +11,14 @@
 
 1. Fill in `config.json` based off `config.example.json`.
 
-2. Run:
+2. Run the two stages in order:
 
 ```cmd
-dotnet run --project Importer
+dotnet run --project Importer -- --import
+dotnet run --project Importer -- --process
 ```
+
+`--import` copies the Discord data (profiles, channels, messages, attachments, emojis, reactions). `--process` then turns the stored messages into songs, links and SOTD entries using Spotify, Apple Music and yt-dlp. Both can be re-run; each picks up where it left off.
 
 ### Admin UI
 

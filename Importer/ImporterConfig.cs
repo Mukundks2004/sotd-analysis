@@ -2,6 +2,15 @@ using System.Text.Json;
 
 namespace Importer;
 
+/// <summary>Which half of the importer a run performs. Chosen on the command line.</summary>
+public enum ImporterMode
+{
+    /// <summary><c>--import</c>: Discord only.</summary>
+    Import,
+    /// <summary><c>--process</c>: music services only, over what was already imported.</summary>
+    Process,
+}
+
 public class ImporterConfig
 {
     /// <summary>Path to the sqlite file. Relative paths are relative to the repo root.</summary>
@@ -33,7 +42,7 @@ public class ImporterConfig
     /// </summary>
     public int SpotifyMinIntervalMs { get; set; } = 150;
 
-    public static ImporterConfig Load(string path)
+    public static ImporterConfig Load(string path, ImporterMode mode)
     {
         var json = File.ReadAllText(path);
         var config = JsonSerializer.Deserialize<ImporterConfig>(json, new JsonSerializerOptions
@@ -42,18 +51,25 @@ public class ImporterConfig
             ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true,
         }) ?? throw new InvalidOperationException($"{path} is empty.");
-        config.Validate();
+        config.Validate(mode);
         return config;
     }
 
-    public void Validate()
+    /// <summary>Only the settings the chosen mode actually uses are required.</summary>
+    public void Validate(ImporterMode mode)
     {
         var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(DiscordToken)) missing.Add(nameof(DiscordToken));
-        if (GuildId == 0) missing.Add(nameof(GuildId));
-        if (ChannelIds.Count == 0) missing.Add(nameof(ChannelIds));
-        if (string.IsNullOrWhiteSpace(SpotifyClientId)) missing.Add(nameof(SpotifyClientId));
-        if (string.IsNullOrWhiteSpace(SpotifyClientSecret)) missing.Add(nameof(SpotifyClientSecret));
+        if (mode == ImporterMode.Import)
+        {
+            if (string.IsNullOrWhiteSpace(DiscordToken)) missing.Add(nameof(DiscordToken));
+            if (GuildId == 0) missing.Add(nameof(GuildId));
+            if (ChannelIds.Count == 0) missing.Add(nameof(ChannelIds));
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(SpotifyClientId)) missing.Add(nameof(SpotifyClientId));
+            if (string.IsNullOrWhiteSpace(SpotifyClientSecret)) missing.Add(nameof(SpotifyClientSecret));
+        }
         if (missing.Count > 0)
             throw new InvalidOperationException("Config is missing required values: " + string.Join(", ", missing));
         if (string.IsNullOrWhiteSpace(YtDlpPath)) YtDlpPath = "yt-dlp";

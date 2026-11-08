@@ -8,8 +8,8 @@ using Channel = Database.Entities.Channel;
 
 namespace Importer;
 
-/// <summary>An attachment that has been downloaded and, if it is audio or video, already identified.</summary>
-public sealed record PreparedAttachment(IAttachment Source, string RelativePath, string Extension, ResolvedMedia? Media);
+/// <summary>An attachment that has been downloaded to disk, ready to be written to the database.</summary>
+public sealed record PreparedAttachment(IAttachment Source, string RelativePath, string Extension);
 
 /// <summary>One emote on a message together with everyone who reacted with it.</summary>
 public sealed record PreparedReaction(IEmote Emote, List<IUser> Users);
@@ -17,15 +17,18 @@ public sealed record PreparedReaction(IEmote Emote, List<IUser> Users);
 /// <summary>
 /// A message with all of its slow network work already done, ready to be written to the database.
 /// Preparing these in parallel is what makes the importer fast; they are still written one at a time
-/// in message order so ordering, resume and song de-duplication behave exactly as they did serially.
+/// in message order so ordering and resume behave exactly as they did serially.
 /// </summary>
 public sealed record PreparedMessage(
     IMessage Message,
     string Context,
-    List<ResolvedMedia> LinkMedia,
     List<PreparedAttachment> Attachments,
     List<PreparedReaction> Reactions);
 
+/// <summary>
+/// The <c>--import</c> run: copies profiles, channels, messages, attachments, emojis and reactions out of Discord.
+/// It never calls Spotify, Apple Music or any other music service; <see cref="MessageProcessor"/> does that.
+/// </summary>
 public class DiscordImporter : IDiscordImporter
 {
     static readonly HashSet<string> AudioVideoExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -38,25 +41,18 @@ public class DiscordImporter : IDiscordImporter
     readonly string _repoRoot;
     readonly ISotdDbContextFactory _dbs;
     readonly IFileDownloader _downloader;
-    readonly IMediaResolver _resolver;
     readonly IProfileSync _profiles;
     readonly IEmojiSync _emojis;
-    readonly ISongTitleIndex _songIndex;
-    readonly ICatalogWriterFactory _writers;
 
     public DiscordImporter(ImporterConfig config, string repoRoot, ISotdDbContextFactory dbs,
-        IFileDownloader downloader, IMediaResolver resolver, IProfileSync profiles, IEmojiSync emojis,
-        ISongTitleIndex songIndex, ICatalogWriterFactory writers)
+        IFileDownloader downloader, IProfileSync profiles, IEmojiSync emojis)
     {
         _config = config;
         _repoRoot = repoRoot;
         _dbs = dbs;
         _downloader = downloader;
-        _resolver = resolver;
         _profiles = profiles;
         _emojis = emojis;
-        _songIndex = songIndex;
-        _writers = writers;
     }
 
     SotdDbContext NewDb() => _dbs.Create();
@@ -77,8 +73,6 @@ public class DiscordImporter : IDiscordImporter
         Console.WriteLine($"  {members.Count} members");
 
         _profiles.SetMembers(memberIds);
-        using (var db = NewDb())
-            await _songIndex.LoadAsync(db);
 
         // Refresh profiles we already have that are still in the server.
         using (var db = NewDb())
@@ -125,11 +119,11 @@ public class DiscordImporter : IDiscordImporter
             ? $"#{channel.Name}: importing from the beginning"
             : $"#{channel.Name}: resuming after message {lastStored}");
 
-        int messages = 0, entries = 0;
+        int messages = 0;
         var last = (ulong)lastStored;
 
-        // Walking the channel is cheap; identifying what was posted is not. So the messages stream out in
-        // order here and OrderedPipeline does the identifying many at a time, while still writing in order.
+        // Walking the channel is cheap; downloading attachments and listing reactors is not. So the messages
+        // stream out in order here and OrderedPipeline does that work many at a time, while still writing in order.
         async IAsyncEnumerable<IMessage> NewMessagesAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
@@ -151,19 +145,19 @@ public class DiscordImporter : IDiscordImporter
             (msg, ct) => PrepareMessageAsync(msg, channel.Name, ct),
             async prepared =>
             {
-                entries += await WriteMessageAsync(prepared, dbChannelId);
+                await WriteMessageAsync(prepared, dbChannelId);
                 messages++;
                 // The first one is worth announcing: on a fresh run it is the proof that writing has started.
                 if (messages == 1 || messages % 50 == 0)
-                    Console.WriteLine($"  #{channel.Name}: {messages} messages, {entries} entries (at {prepared.Message.Timestamp:yyyy-MM-dd})");
+                    Console.WriteLine($"  #{channel.Name}: {messages} messages (at {prepared.Message.Timestamp:yyyy-MM-dd})");
             });
 
-        Console.WriteLine($"#{channel.Name}: imported {messages} messages, {entries} entries");
+        Console.WriteLine($"#{channel.Name}: imported {messages} messages");
     }
 
     /// <summary>
-    /// Everything about a message that needs the network: resolving its links, downloading and identifying its
-    /// attachments and listing who reacted. Touches no database state, so many of these can run at once.
+    /// Everything about a message that needs the network: downloading its attachments and listing who reacted.
+    /// Touches no database state, so many of these can run at once.
     /// </summary>
     async Task<PreparedMessage> PrepareMessageAsync(IMessage msg, string channelName, CancellationToken ct)
     {
@@ -178,9 +172,8 @@ public class DiscordImporter : IDiscordImporter
             if (!await _downloader.TryDownloadAsync(att.Url, full))
                 throw new InvalidOperationException($"Could not download attachment {att.Filename} ({att.Id}) of {context}");
 
-            var media = IsAudioOrVideo(att) ? await _resolver.ResolveFileAsync(full, att.Filename, context) : null;
             var ext = Path.GetExtension(att.Filename).TrimStart('.').ToLowerInvariant();
-            attachments.Add(new PreparedAttachment(att, relative, ext, media));
+            attachments.Add(new PreparedAttachment(att, relative, ext));
         }
 
         var reactions = new List<PreparedReaction>();
@@ -195,20 +188,16 @@ public class DiscordImporter : IDiscordImporter
             }
         }
 
-        var linkMedia = new List<ResolvedMedia>();
-        foreach (var link in Text.ExtractLinks(msg.Content))
-            linkMedia.AddRange(await _resolver.ResolveLinkAsync(link, context));
-
-        return new PreparedMessage(msg, context, linkMedia, attachments, reactions);
+        return new PreparedMessage(msg, context, attachments, reactions);
     }
 
-    /// <summary>Writes one prepared message and everything attached to it in a single transaction. Returns the number of entries added.</summary>
-    async Task<int> WriteMessageAsync(PreparedMessage prepared, Guid channelId)
+    /// <summary>Writes one prepared message and everything attached to it in a single transaction.</summary>
+    async Task WriteMessageAsync(PreparedMessage prepared, Guid channelId)
     {
         var msg = prepared.Message;
         using var db = NewDb();
         var discordId = (long)msg.Id;
-        if (await db.Messages.AnyAsync(m => m.DiscordId == discordId)) return 0;
+        if (await db.Messages.AnyAsync(m => m.DiscordId == discordId)) return;
 
         await using var tx = await db.Database.BeginTransactionAsync();
 
@@ -236,11 +225,10 @@ public class DiscordImporter : IDiscordImporter
         };
         db.Messages.Add(message);
 
-        var attachments = new List<(Attachment Row, PreparedAttachment Prepared)>();
         foreach (var att in prepared.Attachments)
         {
             var fileExt = await GetOrCreateExtensionAsync(db, att.Extension);
-            var row = new Attachment
+            db.Attachments.Add(new Attachment
             {
                 Id = Guid.NewGuid(),
                 DiscordId = (long)att.Source.Id,
@@ -249,31 +237,13 @@ public class DiscordImporter : IDiscordImporter
                 FileExtensionId = fileExt.Id,
                 Size = att.Source.Size,
                 Path = att.RelativePath,
-            };
-            db.Attachments.Add(row);
-            attachments.Add((row, att));
+            });
         }
         await db.SaveChangesAsync();
 
         await AddReactionsAsync(db, prepared, message);
 
-        var writer = _writers.Create(db);
-        var entryCount = 0;
-        foreach (var media in prepared.LinkMedia)
-        {
-            await writer.AddEntryAsync(message, media, null, prepared.Context);
-            entryCount++;
-        }
-
-        foreach (var (row, att) in attachments)
-        {
-            if (att.Media == null) continue;
-            await writer.AddEntryAsync(message, att.Media, row, prepared.Context);
-            entryCount++;
-        }
-
         await tx.CommitAsync();
-        return entryCount;
     }
 
     async Task AddReactionsAsync(SotdDbContext db, PreparedMessage prepared, Message message)
@@ -309,6 +279,10 @@ public class DiscordImporter : IDiscordImporter
         if (a.ContentType is { } ct &&
             (ct.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) || ct.StartsWith("video/", StringComparison.OrdinalIgnoreCase)))
             return true;
-        return AudioVideoExtensions.Contains(Path.GetExtension(a.Filename).TrimStart('.'));
+        return IsAudioOrVideoFilename(a.Filename);
     }
+
+    /// <summary>Extension-only check, for attachments already stored (the content type is not kept).</summary>
+    public static bool IsAudioOrVideoFilename(string filename) =>
+        AudioVideoExtensions.Contains(Path.GetExtension(filename).TrimStart('.'));
 }

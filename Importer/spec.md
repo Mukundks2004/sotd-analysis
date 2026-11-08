@@ -4,7 +4,12 @@ We need to write a software that will import every "song of the day" from one or
 
 ## Configuration
 
-All input comes from a config file (e.g. `config.json`, gitignored, with a committed `config.example.json`). There are no CLI arguments. It contains:
+All input comes from a config file (e.g. `config.json`, gitignored, with a committed `config.example.json`). The only command line argument is a flag that picks the stage to run, exactly one of:
+
+- `--import` — reads Discord and populates `Profile`, `Channel`, `Message`, `File Extension`, `Attachment`, `Emoji` and `Reaction`. Needs the Discord settings only; never calls Spotify, Apple Music or yt-dlp.
+- `--process` — goes through the messages already in the db that have no SOTD entry yet and populates `Attachment Song`, `Song`, `Genre`, `Artist`, `Link Source`, `Song Link` and `SOTD Entry`. Needs the Spotify settings and yt-dlp; never calls Discord. Messages that produce no entry (no link or audio file, or a link that cannot be resolved) are looked at again on the next run.
+
+The config contains:
 
 - Database connection string (path to the sqlite file)
 - Discord bot token
@@ -43,7 +48,7 @@ For each configured channel:
     - If the emoji is a custom emoji and is not in the database (check by emoji ID snowflake) enter it into the DB
       - Download the emoji to `Download/Emojis/{snowflake}-{name}.{ext}`
     - If the emoji is a default (unicode) emoji and is not in the database (check by character) enter it with a null Discord ID and null path
-  - Create SOTD entries (see below)
+  - Entries are not created here; `--process` creates them later (see below)
 
 File names built from usernames, filenames or emoji names are sanitized of characters that are invalid in file names, and the real file extension is appended where the pattern above shows `{ext}`.
 

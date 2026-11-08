@@ -141,8 +141,14 @@ public interface IEmojiSync
     Task<Emoji> EnsureAsync(SotdDbContext db, IEmote emote);
 }
 
-/// <summary>The import run itself: read the configured channels and write what they contain.</summary>
+/// <summary>The <c>--import</c> run: read the configured channels and write what they contain. No music services.</summary>
 public interface IDiscordImporter
+{
+    Task RunAsync();
+}
+
+/// <summary>The <c>--process</c> run: turn already-imported messages into songs, links and SOTD entries.</summary>
+public interface IMessageProcessor
 {
     Task RunAsync();
 }
